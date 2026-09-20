@@ -8,11 +8,23 @@
   grid-column: 2;
 }
 
+.app-header__back {
+  grid-column: 1;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.app-header__back,
 .app-header__bug {
-  grid-column: 3;
-  justify-self: end;
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--primary-yellow);
   border-radius: var(--radius-pill);
   background: var(--background-dark);
+}
+
+.app-header__bug {
+  grid-column: 3;
+  justify-self: end;
 }

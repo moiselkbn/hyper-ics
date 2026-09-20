@@ -50,6 +50,14 @@
   outline-offset: 2px;
 }
 
-.checkbox-row__label {
+.checkbox-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
   white-space: nowrap;
+}
+
+.checkbox-row__detail {
+  color: var(--transparent-white-50);
+  font-size: 12px;
 }
