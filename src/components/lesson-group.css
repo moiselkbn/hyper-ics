@@ -1,0 +1,54 @@
+.lesson-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lesson-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lesson-group__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  padding-inline: var(--space-1);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Carré jaune quand tous les cours de la promotion sont cochés. */
+.lesson-group__marker {
+  width: 10px;
+  height: 10px;
+  border-radius: 1.6px;
+  background: var(--white);
+}
+
+.lesson-group__marker--checked {
+  background: var(--primary-yellow);
+}
+
+.lesson-group__actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.lesson-group__action {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-chip);
+  background: var(--white);
+  color: var(--background-dark);
+  font-size: 12px;
+}
+
+.lesson-group__list {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1);
+  border-radius: var(--space-2);
+  background: var(--transparent-white-20);
+}
