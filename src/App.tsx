@@ -4,9 +4,10 @@ import { getDefaultLessonIds, MOCK_LESSONS } from './data/lessons';
 import { ClassChoice } from './screens/class-choice';
 import { Landing } from './screens/landing';
 import { LessonChoice } from './screens/lesson-choice';
+import { SelectionReview } from './screens/selection-review';
 
 export function App() {
-  const [screen, setScreen] = useState<'landing' | 'class-choice' | 'lesson-choice'>('landing');
+  const [screen, setScreen] = useState<'landing' | 'class-choice' | 'lesson-choice' | 'selection-review'>('landing');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [selectedLessons, setSelectedLessons] = useState<ReadonlySet<string>>(new Set());
 
@@ -49,16 +50,28 @@ export function App() {
     );
   }
 
+  if (screen === 'lesson-choice') {
+    return (
+      <LessonChoice
+        promotions={[...selected]}
+        lessons={MOCK_LESSONS}
+        selected={selectedLessons}
+        onToggle={(lessonId, checked) => toggleLessons([lessonId], checked)}
+        onToggleAll={toggleLessons}
+        onBack={() => setScreen('class-choice')}
+        onNext={() => setScreen('selection-review')}
+      />
+    );
+  }
+
   return (
-    <LessonChoice
+    <SelectionReview
       promotions={[...selected]}
       lessons={MOCK_LESSONS}
       selected={selectedLessons}
-      onToggle={(lessonId, checked) => toggleLessons([lessonId], checked)}
-      onToggleAll={toggleLessons}
-      onBack={() => setScreen('class-choice')}
+      onBack={() => setScreen('lesson-choice')}
       onNext={() => {
-        // L'étape 3 sera branchée ici.
+        // L'étape 4 (lien du flux ICS) sera branchée ici.
       }}
     />
   );
