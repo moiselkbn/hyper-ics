@@ -81,22 +81,25 @@
   width: 114px;
   height: 114px;
   margin: -57px 0 0 -57px;
-  border-radius: 16px;
-  background: linear-gradient(to bottom, #2c2d07, #0a0909);
+  /* 25 % du côté, comme les 16px sur la base de 64px de la maquette. */
+  border-radius: 28.5px;
+  background: linear-gradient(to bottom, #0a0909, #2c2d07);
   box-shadow:
-    inset 0 3.165px 2.316px -1px rgba(244, 255, 161, 0.37),
-    inset 0 -3.563px 10.551px -1.777px #edf1da,
-    inset 0 -7.125px 15.827px -2.369px rgba(235, 255, 102, 0.5),
-    inset 0 -17.813px 31.653px -8.885px #b1cd14;
+    inset 0 3.165px 2.316px -1.781px rgba(244, 255, 161, 0.37),
+    inset 0 -3.562px 10.551px -3.165px #edf1da,
+    inset 0 -7.125px 15.827px -4.22px rgba(235, 255, 102, 0.5),
+    inset 0 -17.812px 31.653px -15.827px #b1cd14;
   animation: logo-float var(--generation-loop) ease-in-out infinite;
 }
 
+/* Le glyphe est retourné verticalement dans la maquette. */
 .generation__logo-glyph {
   position: absolute;
   top: 23.4px;
   left: 27.81px;
   width: 60.16px;
   height: 65.43px;
+  transform: scaleY(-1);
 }
 
 /* Halo qui monte à mesure que les cours sont absorbés. */
