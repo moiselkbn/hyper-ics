@@ -10,13 +10,13 @@ import './generation.css';
 // Doit rester aligné sur --generation-loop dans generation.css.
 const LOOP_DURATION_MS = 7000;
 
-// Positions des pastilles dans la scène, reprises de la maquette.
-// --fly-* est le déplacement vers le logo, au centre de la scène.
-const PILL_POSITIONS: CSSProperties[] = [
-  { left: '41.5%', top: '5%', '--fly-x': '-46px', '--fly-y': '225px', '--pill-delay': '0.9s' } as CSSProperties,
-  { left: '15%', top: '17%', '--fly-x': '106px', '--fly-y': '162px', '--pill-delay': '0.3s' } as CSSProperties,
-  { left: '58%', top: '23%', '--fly-x': '-79px', '--fly-y': '131px', '--pill-delay': '1.5s' } as CSSProperties,
-];
+// Pastilles de la maquette : --from-* est leur position de départ par rapport
+// au centre du logo, --park-scale la taille à laquelle elles s'y garent.
+const PILL_SLOTS = [
+  { modifier: 'first', style: { '--from-x': '79.5px', '--from-y': '-131px', '--park-scale': '0.12' } },
+  { modifier: 'second', style: { '--from-x': '-106.5px', '--from-y': '-162px', '--park-scale': '0.45' } },
+  { modifier: 'third', style: { '--from-x': '46.5px', '--from-y': '-225px', '--park-scale': '0.3' } },
+] as const;
 
 // Salle et horaire sont illustratifs : le scrap ne les fournit pas encore.
 const SAMPLE_SLOTS = [
@@ -35,7 +35,7 @@ type GenerationProps = {
 // Étape 4 : le calendrier se construit, l'animation tourne en boucle.
 export function Generation({ promotions, lessons, selected, onNext }: GenerationProps) {
   const [isReady, setIsReady] = useState(false);
-  const featured = lessons.filter((lesson) => selected.has(lesson.id)).slice(0, PILL_POSITIONS.length);
+  const featured = lessons.filter((lesson) => selected.has(lesson.id)).slice(0, PILL_SLOTS.length);
 
   // Le bouton n'apparaît qu'une fois la première boucle terminée.
   useEffect(() => {
@@ -54,7 +54,11 @@ export function Generation({ promotions, lessons, selected, onNext }: Generation
 
       <div className="generation__stage">
         {featured.map((lesson, index) => (
-          <div key={lesson.id} className="generation__pill" style={PILL_POSITIONS[index]}>
+          <div
+            key={lesson.id}
+            className={`generation__pill generation__pill--${PILL_SLOTS[index].modifier}`}
+            style={PILL_SLOTS[index].style as CSSProperties}
+          >
             <LessonPill code={lesson.code} teacher={lesson.teacher} />
           </div>
         ))}
