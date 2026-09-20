@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MOCK_CURRICULA } from './data/curricula';
+import { isPromotionDisabled, MOCK_CURRICULA } from './data/curricula';
 import { ClassChoice } from './screens/class-choice';
 import { Landing } from './screens/landing';
 
@@ -10,7 +10,7 @@ export function App() {
   function togglePromotion(promotion: string, checked: boolean) {
     setSelected((previous) => {
       const next = new Set(previous);
-      if (checked) next.add(promotion);
+      if (checked && !isPromotionDisabled(promotion, previous)) next.add(promotion);
       else next.delete(promotion);
       return next;
     });

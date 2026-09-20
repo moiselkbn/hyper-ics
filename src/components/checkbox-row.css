@@ -7,6 +7,11 @@
   cursor: pointer;
 }
 
+.checkbox-row--disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
 /* Champ natif conservé pour le clavier et les lecteurs d'écran. */
 .checkbox-row__input {
   position: absolute;

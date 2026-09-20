@@ -6,10 +6,11 @@ import './curriculum-group.css';
 type CurriculumGroupProps = {
   curriculum: Curriculum;
   selected: ReadonlySet<string>;
+  isDisabled: (promotion: string) => boolean;
   onToggle: (promotion: string, checked: boolean) => void;
 };
 
-export function CurriculumGroup({ curriculum, selected, onToggle }: CurriculumGroupProps) {
+export function CurriculumGroup({ curriculum, selected, isDisabled, onToggle }: CurriculumGroupProps) {
   const [open, setOpen] = useState(false);
   const panelId = `curriculum-${curriculum.id}`;
   const selectedCount = curriculum.promotions.filter((promotion) => selected.has(promotion)).length;
@@ -37,6 +38,7 @@ export function CurriculumGroup({ curriculum, selected, onToggle }: CurriculumGr
               key={promotion}
               label={promotion}
               checked={selected.has(promotion)}
+              disabled={isDisabled(promotion)}
               onChange={(checked) => onToggle(promotion, checked)}
             />
           ))}
