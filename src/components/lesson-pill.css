@@ -1,0 +1,20 @@
+.lesson-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-1);
+  border-bottom: 1px solid var(--background-dark);
+  border-radius: 8px;
+  background: var(--white);
+  white-space: nowrap;
+}
+
+.lesson-pill__code {
+  color: var(--background-dark);
+  font-size: 10px;
+}
+
+.lesson-pill__teacher {
+  color: rgba(29, 30, 27, 0.5);
+  font-size: 8px;
+}

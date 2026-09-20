@@ -1,0 +1,182 @@
+.generation {
+  /* Durée d'une boucle, reprise de la timeline Figma (7 s). */
+  --generation-loop: 7s;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 100dvh;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+}
+
+.generation__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+/* Scène de l'animation : le logo est au centre, tout converge vers lui. */
+.generation__stage {
+  position: relative;
+  flex: 1;
+  min-height: 480px;
+}
+
+.generation__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.generation__footer {
+  min-height: 56px;
+  margin-top: auto;
+}
+
+/* --- Pastilles de cours --- */
+
+.generation__pill {
+  position: absolute;
+  animation: pill-fly var(--generation-loop) linear var(--pill-delay) infinite;
+}
+
+@keyframes pill-fly {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+  }
+  4% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.08);
+  }
+  7% {
+    transform: translate(0, 0) scale(1);
+  }
+  26% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  38% {
+    opacity: 0;
+    transform: translate(var(--fly-x), var(--fly-y)) scale(0.12);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fly-x), var(--fly-y)) scale(0.12);
+  }
+}
+
+/* --- Logo --- */
+
+.generation__logo {
+  position: absolute;
+  top: 51%;
+  left: 50%;
+  width: 114px;
+  height: 114px;
+  margin: -57px 0 0 -57px;
+  border-radius: 16px;
+  background: linear-gradient(to bottom, #2c2d07, #0a0909);
+  box-shadow:
+    inset 0 3.165px 2.316px -1px rgba(244, 255, 161, 0.37),
+    inset 0 -3.563px 10.551px -1.777px #edf1da,
+    inset 0 -7.125px 15.827px -2.369px rgba(235, 255, 102, 0.5),
+    inset 0 -17.813px 31.653px -8.885px #b1cd14;
+  animation: logo-float var(--generation-loop) ease-in-out infinite;
+}
+
+.generation__logo-glyph {
+  position: absolute;
+  top: 23.4px;
+  left: 27.81px;
+  width: 60.16px;
+  height: 65.43px;
+}
+
+/* Halo qui monte à mesure que les cours sont absorbés. */
+.generation__logo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 37px #5c6f2b;
+  animation: logo-glow var(--generation-loop) linear infinite;
+}
+
+@keyframes logo-float {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0);
+  }
+  25%,
+  75% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes logo-glow {
+  0%,
+  24% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.33;
+  }
+  46% {
+    opacity: 0.66;
+  }
+  52%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* --- Événements du calendrier --- */
+
+.generation__calendar {
+  position: absolute;
+  top: 67%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transform: translateX(-50%);
+}
+
+.generation__calendar .calendar-item {
+  animation: calendar-appear var(--generation-loop) ease-out var(--calendar-delay) infinite;
+}
+
+@keyframes calendar-appear {
+  0%,
+  58% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  66%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Sans animation : la scène s'affiche telle qu'à la fin de la boucle. */
+@media (prefers-reduced-motion: reduce) {
+  .generation__pill {
+    animation: none;
+    opacity: 1;
+  }
+
+  .generation__logo,
+  .generation__logo::after,
+  .generation__calendar .calendar-item {
+    animation: none;
+  }
+}

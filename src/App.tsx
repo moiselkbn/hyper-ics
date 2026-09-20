@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { isPromotionDisabled, MOCK_CURRICULA } from './data/curricula';
 import { getDefaultLessonIds, MOCK_LESSONS } from './data/lessons';
 import { ClassChoice } from './screens/class-choice';
+import { Generation } from './screens/generation';
 import { Landing } from './screens/landing';
 import { LessonChoice } from './screens/lesson-choice';
 import { SelectionReview } from './screens/selection-review';
 
 export function App() {
-  const [screen, setScreen] = useState<'landing' | 'class-choice' | 'lesson-choice' | 'selection-review'>('landing');
+  const [screen, setScreen] = useState<
+    'landing' | 'class-choice' | 'lesson-choice' | 'selection-review' | 'generation'
+  >('landing');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [selectedLessons, setSelectedLessons] = useState<ReadonlySet<string>>(new Set());
 
@@ -64,14 +67,25 @@ export function App() {
     );
   }
 
+  if (screen === 'selection-review') {
+    return (
+      <SelectionReview
+        promotions={[...selected]}
+        lessons={MOCK_LESSONS}
+        selected={selectedLessons}
+        onBack={() => setScreen('lesson-choice')}
+        onNext={() => setScreen('generation')}
+      />
+    );
+  }
+
   return (
-    <SelectionReview
+    <Generation
       promotions={[...selected]}
       lessons={MOCK_LESSONS}
       selected={selectedLessons}
-      onBack={() => setScreen('lesson-choice')}
       onNext={() => {
-        // L'étape 4 (lien du flux ICS) sera branchée ici.
+        // L'écran du lien ICS sera branché ici.
       }}
     />
   );
