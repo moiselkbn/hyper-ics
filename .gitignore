@@ -13,7 +13,7 @@ build/
 .vercel/
 
 # Données et sessions (données personnelles d'élèves)
-data/
+/data/
 *.ics
 auth-state*.json
 storage-state*.json
