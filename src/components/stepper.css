@@ -1,0 +1,15 @@
+.stepper {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.stepper__segment {
+  flex: 1 0 0;
+  height: 4px;
+  border-radius: var(--radius-stepper);
+  background: var(--transparent-white-20);
+}
+
+.stepper__segment--active {
+  background: var(--primary-yellow);
+}

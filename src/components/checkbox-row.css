@@ -1,0 +1,50 @@
+.checkbox-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-1);
+  cursor: pointer;
+}
+
+/* Champ natif conservé pour le clavier et les lecteurs d'écran. */
+.checkbox-row__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.checkbox-row__box {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 1.6px;
+  background: var(--white);
+}
+
+.checkbox-row__input:checked + .checkbox-row__box {
+  background: var(--primary-yellow);
+}
+
+/* Coche dessinée en CSS. */
+.checkbox-row__input:checked + .checkbox-row__box::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--background-dark);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-row__input:focus-visible + .checkbox-row__box {
+  outline: 2px solid var(--primary-yellow);
+  outline-offset: 2px;
+}
+
+.checkbox-row__label {
+  white-space: nowrap;
+}
