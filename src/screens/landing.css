@@ -1,0 +1,94 @@
+.landing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  padding: 69px var(--space-2) 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.landing__logo {
+  flex: none;
+}
+
+.landing__title {
+  max-width: 361px;
+  margin: 32px 0 0;
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+/* Surligneur jaune incliné qui se dessine sous le nom de l'app (boucle de 2 s). */
+.landing__wordmark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 222.628px;
+  height: 62.608px;
+  margin: -10px 0 0;
+  padding: 0 var(--space-2);
+  color: var(--background-dark);
+  font-size: 38.557px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.landing__wordmark::before {
+  content: '';
+  position: absolute;
+  inset: 3.87px 0;
+  background: var(--primary-yellow);
+  transform: rotate(-2deg);
+  animation: landing-highlight 2s linear infinite;
+}
+
+.landing__wordmark > * {
+  position: relative;
+}
+
+@keyframes landing-highlight {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+  13.034% {
+    clip-path: inset(0 100% 0 0);
+    animation-timing-function: cubic-bezier(0.148, 0.915, 0.8, 1);
+  }
+  43.287%,
+  100% {
+    clip-path: inset(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__wordmark::before {
+    animation: none;
+  }
+}
+
+.landing__text {
+  max-width: 269px;
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+.landing__cta {
+  width: 240px;
+  margin-top: 14px;
+}
+
+/* La maquette est coupée en bas de l'écran : le téléphone déborde. */
+.landing__phone {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 407px;
+  margin-top: 56px;
+  overflow: hidden;
+}

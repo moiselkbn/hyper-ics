@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { MOCK_CURRICULA } from './data/curricula';
 import { ClassChoice } from './screens/class-choice';
+import { Landing } from './screens/landing';
 
 export function App() {
+  const [screen, setScreen] = useState<'landing' | 'class-choice'>('landing');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
   function togglePromotion(promotion: string, checked: boolean) {
@@ -12,6 +14,10 @@ export function App() {
       else next.delete(promotion);
       return next;
     });
+  }
+
+  if (screen === 'landing') {
+    return <Landing onStart={() => setScreen('class-choice')} />;
   }
 
   return (
