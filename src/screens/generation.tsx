@@ -10,12 +10,12 @@ import './generation.css';
 // Doit rester aligné sur --generation-loop dans generation.css.
 const LOOP_DURATION_MS = 7000;
 
-// Pastilles de la maquette : --from-* est leur position de départ par rapport
-// au centre du logo, --park-scale la taille à laquelle elles s'y garent.
+// Position de départ de chaque pastille, par rapport au centre du logo.
+// Le reste du trajet vient des keyframes de generation.css.
 const PILL_SLOTS = [
-  { modifier: 'first', style: { '--from-x': '79.5px', '--from-y': '-131px', '--park-scale': '0.12' } },
-  { modifier: 'second', style: { '--from-x': '-106.5px', '--from-y': '-162px', '--park-scale': '0.45' } },
-  { modifier: 'third', style: { '--from-x': '46.5px', '--from-y': '-225px', '--park-scale': '0.3' } },
+  { modifier: 'first', style: { '--from-x': '79.5px', '--from-y': '-131px' } },
+  { modifier: 'second', style: { '--from-x': '-106.5px', '--from-y': '-162px' } },
+  { modifier: 'third', style: { '--from-x': '46.5px', '--from-y': '-225px' } },
 ] as const;
 
 // Salle et horaire sont illustratifs : le scrap ne les fournit pas encore.
@@ -59,7 +59,9 @@ export function Generation({ promotions, lessons, selected, onNext }: Generation
             className={`generation__pill generation__pill--${PILL_SLOTS[index].modifier}`}
             style={PILL_SLOTS[index].style as CSSProperties}
           >
-            <LessonPill code={lesson.code} teacher={lesson.teacher} />
+            <div className="generation__pill-path">
+              <LessonPill code={lesson.code} teacher={lesson.teacher} />
+            </div>
           </div>
         ))}
 
