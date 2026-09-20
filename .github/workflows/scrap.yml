@@ -1,0 +1,42 @@
+name: Scrap Hyperplanning
+
+on:
+  schedule:
+    # Toutes les heures à HH:17 UTC, de 5h à 16h : couvre 7h–17h Europe/Brussels en été (UTC+2)
+    # comme en hiver (UTC+1). Le script écarte les heures hors plage (--only-in-hours).
+    # La minute 17 évite l'heure pile, où GitHub retarde ou saute des exécutions.
+    - cron: '17 5-16 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Simulation : rien n’est écrit dans Redis'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Jamais deux scraps en même temps : on ne double pas les requêtes vers Hyperplanning.
+concurrency:
+  group: scrap
+  cancel-in-progress: false
+
+jobs:
+  scrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Action épinglée par son commit (v7.0.1) : un tag peut être déplacé, pas un commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scrap vers Redis
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ "$EVENT" = schedule ]; then args+=(--only-in-hours); fi
+          if [ "$DRY_RUN" = true ]; then args+=(--dry-run); fi
+          node scraper/scrap-to-redis.mjs "${args[@]}"
