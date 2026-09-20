@@ -27,5 +27,8 @@ blob-report/
 *.log
 logs/
 
+# Outils locaux
+.claude/
+
 # Système
 .DS_Store
