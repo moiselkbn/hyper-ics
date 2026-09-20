@@ -1,0 +1,22 @@
+.class-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 100dvh;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+}
+
+.class-choice__curricula {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Bouton collé en bas, comme sur la maquette. */
+.class-choice__footer {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding-block: var(--space-2);
+  background: linear-gradient(to bottom, transparent, var(--background-dark) 50%);
+}

@@ -1,0 +1,34 @@
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+/* Hexagone du numéro d'étape. */
+.step-title__badge {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 27.72px;
+  height: 27.72px;
+}
+
+.step-title__badge-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.step-title__number {
+  position: relative;
+  color: #1b1d1e;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}

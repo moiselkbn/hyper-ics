@@ -1,0 +1,19 @@
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: 16px;
+}
+
+.button--primary {
+  background: var(--white);
+  color: var(--background-dark);
+}
+
+.button--primary:disabled {
+  background: var(--transparent-white-20);
+  color: var(--transparent-white-50);
+}
