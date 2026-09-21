@@ -22,49 +22,102 @@ export function parsePromotions(searchParams) {
 
 // Dans une promotion, un cours = sa matière (la clé de cours, voir shared/course-key.mjs), quel que soit
 // le nombre d'occurrences par semaine. On garde le premier code rencontré, sans espaces autour.
+// `occurrences` liste les moments où il a lieu : « semaine|jour|début|fin ».
 function coursesOfPromotion(record) {
   const courses = new Map();
   for (const slot of record.courses) {
     if (!slot.key) continue; // sans matière : impossible à identifier, donc à filtrer
     let course = courses.get(slot.key);
     if (!course) {
-      course = { key: slot.key, subject: slot.subject.trim(), code: null, teachers: [] };
+      course = { key: slot.key, subject: slot.subject.trim(), code: null, teachers: [], occurrences: new Set() };
       courses.set(slot.key, course);
     }
     course.code ??= slot.code?.trim() || null;
     for (const teacher of slot.teachers) {
       if (!course.teachers.includes(teacher)) course.teachers.push(teacher);
     }
+    for (const week of slot.weeks) course.occurrences.add(`${week}|${slot.day}|${slot.start}|${slot.end}`);
   }
   return [...courses.values()];
 }
 
-// Un cours est commun à plusieurs promotions s'il a le même code ET la même matière : jamais de fausse
-// fusion (un code peut couvrir deux matières), quitte à laisser en double « Anglais Q1 » / « Anglais 1 ».
-// Sans code, le cours reste propre à sa promotion. Relation plusieurs-à-plusieurs : `promotions` liste
-// celles où il apparaît ; les créneaux, eux, restent par promotion dans Redis.
+const newLesson = (id, course, promotion) => ({
+  id,
+  key: course.key,
+  subject: course.subject,
+  code: course.code,
+  teachers: [...course.teachers],
+  promotions: [promotion],
+  occurrences: new Set(course.occurrences),
+});
+
+// Fond `source` dans `target` ; l'identifiant retenu est le plus petit, pour ne pas dépendre de l'ordre des promotions.
+function absorb(target, source) {
+  if (source.id < target.id) target.id = source.id;
+  target.code ??= source.code;
+  for (const promotion of source.promotions) {
+    if (!target.promotions.includes(promotion)) target.promotions.push(promotion);
+  }
+  for (const teacher of source.teachers) {
+    if (!target.teachers.includes(teacher)) target.teachers.push(teacher);
+  }
+  for (const occurrence of source.occurrences) target.occurrences.add(occurrence);
+}
+
+const shareOccurrence = (a, b) => [...a].some((occurrence) => b.has(occurrence));
+
+// Deux cours de même matière qui ont lieu au même moment (même semaine, même jour, mêmes heures) sont un seul
+// cours : un élève qui suit les deux promotions ne peut pas être à deux endroits à la fois, donc l'afficher deux
+// fois serait une erreur. Le code n'entre pas en jeu : les cours sans code (ateliers, réunions) sont concernés.
+function mergeSimultaneous(lessons) {
+  const groups = [];
+  for (const lesson of lessons) {
+    const twins = groups.filter((group) => group.key === lesson.key && shareOccurrence(group.occurrences, lesson.occurrences));
+    if (twins.length === 0) {
+      groups.push(lesson);
+      continue;
+    }
+    // La leçon peut relier plusieurs groupes déjà formés : ils fusionnent tous avec elle.
+    const [first, ...others] = twins;
+    absorb(first, lesson);
+    for (const other of others) {
+      absorb(first, other);
+      groups.splice(groups.indexOf(other), 1);
+    }
+  }
+  return groups;
+}
+
+// Relation plusieurs-à-plusieurs : `promotions` liste celles où le cours apparaît ; les créneaux, eux, restent
+// par promotion dans Redis. Deux règles fusionnent les cours de promotions différentes :
+//  1. même code ET même matière (jamais de fausse fusion : un code peut couvrir deux matières) ;
+//  2. même matière au même moment (voir mergeSimultaneous), qui règle les cours sans code.
+// Le reste est laissé séparé, même à matière identique : ce sont deux cours distincts (autres moments, autres codes).
 export function buildLessons(records) {
-  const lessons = new Map();
+  const byCode = new Map();
   for (const record of records) {
     for (const course of coursesOfPromotion(record)) {
       const id = course.code ? `code:${course.code}|${course.key}` : `promotion:${record.promotion}|${course.key}`;
-      let lesson = lessons.get(id);
-      if (!lesson) {
-        lesson = { id, subject: course.subject, code: course.code, teachers: [], promotions: [] };
-        lessons.set(id, lesson);
-      }
-      lesson.promotions.push(record.promotion);
-      for (const teacher of course.teachers) {
-        if (!lesson.teachers.includes(teacher)) lesson.teachers.push(teacher);
-      }
+      const lesson = newLesson(id, course, record.promotion);
+      if (byCode.has(id)) absorb(byCode.get(id), lesson);
+      else byCode.set(id, lesson);
     }
   }
+
+  const merged = mergeSimultaneous([...byCode.values()].sort((a, b) => (a.id < b.id ? -1 : 1)));
+  const order = new Map(records.map((record, index) => [record.promotion, index]));
   return {
     // La plus ancienne des dates de scrap : c'est la fraîcheur garantie de la réponse.
     updatedAt: records.map((record) => record.scrapedAt).sort()[0] ?? null,
-    lessons: [...lessons.values()].sort(
-      (a, b) => promotionCollator.compare(a.subject, b.subject) || promotionCollator.compare(a.id, b.id),
-    ),
+    lessons: merged
+      .map(({ id, subject, code, teachers, promotions }) => ({
+        id,
+        subject,
+        code,
+        teachers,
+        promotions: [...promotions].sort((a, b) => order.get(a) - order.get(b)),
+      }))
+      .sort((a, b) => promotionCollator.compare(a.subject, b.subject) || promotionCollator.compare(a.id, b.id)),
   };
 }
 

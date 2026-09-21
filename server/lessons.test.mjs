@@ -6,16 +6,16 @@ import { scheduleKey } from '../shared/redis-keys.mjs';
 import { buildLessons, getLessons, parsePromotions } from './lessons.mjs';
 
 // Un créneau tel que l'écrit le scrap (voir buildScheduleRecord).
-const slot = ({ subject, code = null, teachers = [], day = 0 }) => ({
+const slot = ({ subject, code = null, teachers = [], day = 0, start = '09:00', end = '11:00', weeks = [1, 2, 3] }) => ({
   code,
   subject,
   teachers,
   rooms: [],
   note: null,
   day,
-  start: '09:00',
-  end: '11:00',
-  weeks: [1, 2, 3],
+  start,
+  end,
+  weeks,
   key: subject ? courseKey(subject) : null,
 });
 
@@ -39,10 +39,15 @@ test('un cours à plusieurs occurrences par semaine n’est listé qu’une fois
   ]);
 });
 
+test('la réponse n’expose pas les champs internes de la fusion', () => {
+  const [lesson] = buildLessons([record('1AT', [slot({ subject: 'Tissage' })])]).lessons;
+  assert.deepEqual(Object.keys(lesson).sort(), ['code', 'id', 'promotions', 'subject', 'teachers']);
+});
+
 test('un cours de même code et même matière est commun à plusieurs promotions', () => {
   const { lessons } = buildLessons([
-    record('2TI Web', [slot({ subject: 'Anglais Q3', code: 'TLAE-302', teachers: ['Martin'] })]),
-    record('3TI Web', [slot({ subject: 'Anglais Q3', code: 'TLAE-302', teachers: ['Dupont'] })]),
+    record('2TI Web', [slot({ subject: 'Anglais Q3', code: 'TLAE-302', teachers: ['Martin'], day: 1 })]),
+    record('3TI Web', [slot({ subject: 'Anglais Q3', code: 'TLAE-302', teachers: ['Dupont'], day: 2 })]),
   ]);
   assert.equal(lessons.length, 1);
   assert.deepEqual(lessons[0].promotions, ['2TI Web', '3TI Web']);
@@ -57,25 +62,6 @@ test('un même code pour deux matières donne deux cours', () => {
     ]),
   ]);
   assert.deepEqual(lessons.map((lesson) => lesson.subject), ['Animation Q5', 'Modélisation Q5']);
-});
-
-test('une même matière sous deux codes différents n’est pas fusionnée entre promotions', () => {
-  const { lessons } = buildLessons([
-    record('1TGRA', [slot({ subject: 'Infographie 2D', code: 'TGRP-300' })]),
-    record('1TGRB', [slot({ subject: 'Infographie 2D', code: 'TGRP-303' })]),
-  ]);
-  assert.equal(lessons.length, 2);
-  assert.ok(lessons.every((lesson) => lesson.promotions.length === 1));
-});
-
-test('un cours sans code reste propre à sa promotion, même à matière identique', () => {
-  const { lessons } = buildLessons([
-    record('2PUBA', [slot({ subject: 'Atelier', teachers: ['Leroy'] })]),
-    record('3PUB A', [slot({ subject: 'Atelier' })]),
-  ]);
-  assert.equal(lessons.length, 2);
-  assert.deepEqual(lessons.map((lesson) => lesson.id).sort(), ['promotion:2PUBA|atelier', 'promotion:3PUB A|atelier']);
-  assert.ok(lessons.every((lesson) => lesson.code === null));
 });
 
 test('les espaces autour du code sont ignorés', () => {
@@ -101,6 +87,84 @@ test('dans une promotion, un cours garde le premier code rencontré', () => {
 test('un créneau sans matière est ignoré', () => {
   const { lessons } = buildLessons([record('1AT', [slot({ subject: null }), slot({ subject: 'Tissage' })])]);
   assert.deepEqual(lessons.map((lesson) => lesson.subject), ['Tissage']);
+});
+
+// --- Cours de même matière au même moment : un seul cours, jamais deux fois à l'écran.
+
+test('un cours sans code au même moment dans deux promotions n’est listé qu’une fois', () => {
+  const { lessons } = buildLessons([
+    record('2TI Web', [slot({ subject: 'Atelier Edition/Web/VFX', teachers: ['Lemal'] })]),
+    record('3TI Web', [slot({ subject: 'Atelier Edition/Web/VFX', teachers: ['Marchi'] })]),
+  ]);
+  assert.equal(lessons.length, 1);
+  assert.deepEqual(lessons[0].promotions, ['2TI Web', '3TI Web']);
+  assert.deepEqual(lessons[0].teachers, ['Lemal', 'Marchi']);
+  assert.equal(lessons[0].code, null);
+});
+
+test('un seul moment en commun suffit, même si les autres occurrences diffèrent', () => {
+  const { lessons } = buildLessons([
+    record('2TE', [slot({ subject: 'Réunion CAVP', weeks: [3, 10] })]),
+    record('3TE', [slot({ subject: 'Réunion CAVP', weeks: [3, 12] })]),
+  ]);
+  assert.equal(lessons.length, 1);
+});
+
+test('des codes différents ne dispensent pas de fusionner deux cours simultanés', () => {
+  const { lessons } = buildLessons([
+    record('1TGRA', [slot({ subject: 'Infographie 2D', code: 'TGRP-300' })]),
+    record('1TGRB', [slot({ subject: 'Infographie 2D', code: 'TGRP-303' })]),
+  ]);
+  assert.equal(lessons.length, 1);
+  assert.deepEqual(lessons[0].promotions, ['1TGRA', '1TGRB']);
+});
+
+test('la même matière à d’autres moments reste deux cours distincts', () => {
+  const { lessons } = buildLessons([
+    record('2SMA', [slot({ subject: 'Présentation de projet', weeks: [5] })]),
+    record('3SMA', [slot({ subject: 'Présentation de projet', weeks: [12] })]),
+  ]);
+  assert.equal(lessons.length, 2);
+  assert.ok(lessons.every((lesson) => lesson.promotions.length === 1));
+});
+
+test('mêmes semaines mais autre jour ou autres heures : pas simultanés', () => {
+  const base = { subject: 'Atelier', weeks: [4] };
+  const lessonsFor = (other) => buildLessons([record('2TE', [slot(base)]), record('3TE', [slot({ ...base, ...other })])]).lessons;
+  assert.equal(lessonsFor({ day: 1 }).length, 2);
+  assert.equal(lessonsFor({ start: '10:00' }).length, 2);
+  assert.equal(lessonsFor({ end: '12:00' }).length, 2);
+  assert.equal(lessonsFor({}).length, 1); // témoin : tout identique
+});
+
+test('deux matières différentes au même moment ne fusionnent pas', () => {
+  const { lessons } = buildLessons([
+    record('2TE', [slot({ subject: 'Photo' })]),
+    record('3TE', [slot({ subject: 'Vidéo' })]),
+  ]);
+  assert.equal(lessons.length, 2);
+});
+
+test('la fusion ne dépend pas de l’ordre des promotions demandées', () => {
+  const a = record('2TI Web', [slot({ subject: 'Réunion CAVP' })]);
+  const b = record('3TI Web', [slot({ subject: 'Réunion CAVP' })]);
+  const forward = buildLessons([a, b]).lessons;
+  const backward = buildLessons([b, a]).lessons;
+  assert.equal(forward[0].id, backward[0].id);
+  assert.equal(forward[0].id, 'promotion:2TI Web|réunion cavp'); // le plus petit des identifiants fusionnés
+  assert.deepEqual(forward[0].promotions, ['2TI Web', '3TI Web']);
+  assert.deepEqual(backward[0].promotions, ['3TI Web', '2TI Web']); // suit l'ordre demandé
+});
+
+test('un cours qui relie deux groupes séparés les fusionne tous', () => {
+  // P1 et P2 n'ont aucun moment commun ; P3 les recoupe tous les deux.
+  const { lessons } = buildLessons([
+    record('P1', [slot({ subject: 'Atelier', weeks: [1] })]),
+    record('P2', [slot({ subject: 'Atelier', weeks: [2] })]),
+    record('P3', [slot({ subject: 'Atelier', weeks: [1, 2] })]),
+  ]);
+  assert.equal(lessons.length, 1);
+  assert.deepEqual(lessons[0].promotions, ['P1', 'P2', 'P3']);
 });
 
 test('trie les cours par matière et renvoie la plus ancienne date de scrap', () => {
