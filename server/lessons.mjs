@@ -47,6 +47,8 @@ const newLesson = (id, course, promotion) => ({
   subject: course.subject,
   code: course.code,
   teachers: [...course.teachers],
+  // Sans code = atelier, réunion, événement : pas un cours à choisir, il va d'office dans le calendrier de la promotion.
+  mandatory: course.code === null,
   promotions: [promotion],
   occurrences: new Set(course.occurrences),
 });
@@ -55,6 +57,8 @@ const newLesson = (id, course, promotion) => ({
 function absorb(target, source) {
   if (source.id < target.id) target.id = source.id;
   target.code ??= source.code;
+  // Obligatoire dans une des promotions fusionnées = obligatoire pour l'élève qui la suit.
+  target.mandatory ||= source.mandatory;
   for (const promotion of source.promotions) {
     if (!target.promotions.includes(promotion)) target.promotions.push(promotion);
   }
@@ -110,11 +114,12 @@ export function buildLessons(records) {
     // La plus ancienne des dates de scrap : c'est la fraîcheur garantie de la réponse.
     updatedAt: records.map((record) => record.scrapedAt).sort()[0] ?? null,
     lessons: merged
-      .map(({ id, subject, code, teachers, promotions }) => ({
+      .map(({ id, subject, code, teachers, mandatory, promotions }) => ({
         id,
         subject,
         code,
         teachers,
+        mandatory,
         promotions: [...promotions].sort((a, b) => order.get(a) - order.get(b)),
       }))
       .sort((a, b) => promotionCollator.compare(a.subject, b.subject) || promotionCollator.compare(a.id, b.id)),

@@ -5,13 +5,14 @@ import './lesson-group.css';
 type LessonGroupProps = {
   promotion: string;
   lessons: Lesson[];
+  emptyMessage: string;
   selected: ReadonlySet<string>;
   onToggle: (lessonId: string, checked: boolean) => void;
   onToggleAll: (lessonIds: string[], checked: boolean) => void;
 };
 
 // Cours d'une promotion, avec « Tout cocher » et « Tout décocher ».
-export function LessonGroup({ promotion, lessons, selected, onToggle, onToggleAll }: LessonGroupProps) {
+export function LessonGroup({ promotion, lessons, emptyMessage, selected, onToggle, onToggleAll }: LessonGroupProps) {
   const lessonIds = lessons.map((lesson) => lesson.id);
   const hasLessons = lessons.length > 0;
   const allChecked = hasLessons && lessons.every((lesson) => selected.has(lesson.id));
@@ -50,7 +51,7 @@ export function LessonGroup({ promotion, lessons, selected, onToggle, onToggleAl
           ))}
         </div>
       ) : (
-        <p className="lesson-group__empty">Aucun cours publié</p>
+        <p className="lesson-group__empty">{emptyMessage}</p>
       )}
     </section>
   );

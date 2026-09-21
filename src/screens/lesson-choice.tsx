@@ -3,7 +3,7 @@ import { Button } from '../components/button';
 import { LessonGroup } from '../components/lesson-group';
 import { Stepper } from '../components/stepper';
 import { StepTitle } from '../components/step-title';
-import { getLessonsOfPromotion, type Lesson } from '../data/lessons';
+import { getLessonsOfPromotion, getSelectableLessons, type Lesson } from '../data/lessons';
 import './lesson-choice.css';
 
 type LessonChoiceProps = {
@@ -24,16 +24,21 @@ export function LessonChoice({ promotions, lessons, selected, onToggle, onToggle
       <Stepper total={4} current={2} />
       <StepTitle step={2}>Quels cours suis-tu ?</StepTitle>
       <div className="lesson-choice__groups">
-        {promotions.map((promotion) => (
-          <LessonGroup
-            key={promotion}
-            promotion={promotion}
-            lessons={getLessonsOfPromotion(lessons, promotion)}
-            selected={selected}
-            onToggle={onToggle}
-            onToggleAll={onToggleAll}
-          />
-        ))}
+        {promotions.map((promotion) => {
+          const lessonsOfPromotion = getLessonsOfPromotion(lessons, promotion);
+          return (
+            <LessonGroup
+              key={promotion}
+              promotion={promotion}
+              lessons={getSelectableLessons(lessonsOfPromotion)}
+              // Une promotion qui n'a que des cours obligatoires a bien un planning : rien n'est à choisir.
+              emptyMessage={lessonsOfPromotion.length > 0 ? 'Aucun cours à choisir' : 'Aucun cours publié'}
+              selected={selected}
+              onToggle={onToggle}
+              onToggleAll={onToggleAll}
+            />
+          );
+        })}
       </div>
       <div className="lesson-choice__footer">
         <Button disabled={selected.size === 0} onClick={onNext}>

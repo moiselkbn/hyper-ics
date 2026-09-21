@@ -6,6 +6,8 @@ export type Lesson = {
   // Absent pour les cours sans code (ateliers, réunions).
   code: string | null;
   teachers: string[];
+  // Sans code (atelier, réunion) : pas à choisir, toujours dans le calendrier des promotions concernées.
+  mandatory: boolean;
   promotions: string[];
 };
 
@@ -19,7 +21,13 @@ export function getLessonsOfPromotion(lessons: Lesson[], promotion: string): Les
   return lessons.filter((lesson) => lesson.promotions.includes(promotion));
 }
 
-// Par défaut, un élève suit tous les cours de ses promotions.
+// Cours proposés au choix : les cours obligatoires n'y figurent pas.
+export function getSelectableLessons(lessons: Lesson[]): Lesson[] {
+  return lessons.filter((lesson) => !lesson.mandatory);
+}
+
+// Par défaut, un élève suit tous les cours de ses promotions, obligatoires compris.
+// Ceux-ci restent sélectionnés : l'écran de choix ne les montre pas, donc ils ne peuvent pas être décochés.
 export function getDefaultLessonIds(lessons: Lesson[], promotions: ReadonlySet<string>): Set<string> {
   return new Set(
     lessons.filter((lesson) => lesson.promotions.some((promotion) => promotions.has(promotion))).map((lesson) => lesson.id),

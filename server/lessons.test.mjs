@@ -34,6 +34,7 @@ test('un cours à plusieurs occurrences par semaine n’est listé qu’une fois
       subject: 'Nouvelle technologie Q5',
       code: 'TWEB-501',
       teachers: ['Lemal'],
+      mandatory: false,
       promotions: ['3TI Web'],
     },
   ]);
@@ -41,7 +42,7 @@ test('un cours à plusieurs occurrences par semaine n’est listé qu’une fois
 
 test('la réponse n’expose pas les champs internes de la fusion', () => {
   const [lesson] = buildLessons([record('1AT', [slot({ subject: 'Tissage' })])]).lessons;
-  assert.deepEqual(Object.keys(lesson).sort(), ['code', 'id', 'promotions', 'subject', 'teachers']);
+  assert.deepEqual(Object.keys(lesson).sort(), ['code', 'id', 'mandatory', 'promotions', 'subject', 'teachers']);
 });
 
 test('un cours de même code et même matière est commun à plusieurs promotions', () => {
@@ -89,6 +90,25 @@ test('un créneau sans matière est ignoré', () => {
   assert.deepEqual(lessons.map((lesson) => lesson.subject), ['Tissage']);
 });
 
+// --- Cours sans code : ateliers, réunions, événements, ajoutés d'office au calendrier de la promotion.
+
+test('un cours sans code est obligatoire, un cours avec code est à choisir', () => {
+  const { lessons } = buildLessons([
+    record('2TE', [slot({ subject: 'Atelier Edition/Web/VFX' }), slot({ subject: 'Anglais Q3', code: 'TLAE-302', day: 1 })]),
+  ]);
+  const bySubject = Object.fromEntries(lessons.map((lesson) => [lesson.subject, lesson.mandatory]));
+  assert.deepEqual(bySubject, { 'Anglais Q3': false, 'Atelier Edition/Web/VFX': true });
+});
+
+test('un cours fusionné reste obligatoire s’il est sans code dans une des promotions', () => {
+  const { lessons } = buildLessons([
+    record('2TE', [slot({ subject: 'Atelier' })]),
+    record('3TE', [slot({ subject: 'Atelier', code: 'TATL-300' })]),
+  ]);
+  assert.equal(lessons.length, 1);
+  assert.equal(lessons[0].mandatory, true);
+});
+
 // --- Cours de même matière au même moment : un seul cours, jamais deux fois à l'écran.
 
 test('un cours sans code au même moment dans deux promotions n’est listé qu’une fois', () => {
@@ -100,6 +120,7 @@ test('un cours sans code au même moment dans deux promotions n’est listé qu�
   assert.deepEqual(lessons[0].promotions, ['2TI Web', '3TI Web']);
   assert.deepEqual(lessons[0].teachers, ['Lemal', 'Marchi']);
   assert.equal(lessons[0].code, null);
+  assert.equal(lessons[0].mandatory, true);
 });
 
 test('un seul moment en commun suffit, même si les autres occurrences diffèrent', () => {
