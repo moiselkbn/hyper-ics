@@ -7,14 +7,16 @@ import { HttpError, jsonResponse } from './http.mjs';
 export const promotionCollator = new Intl.Collator('fr', { numeric: true });
 
 // Regroupe les promotions par cursus, dans l'ordre de CURRICULA ; un cursus sans promotion n'apparaît pas.
+// `hasCourses` vaut false pour une promotion sans aucun cours publié. Un index écrit avant l'ajout de ce champ
+// ne le porte pas : on ne sait pas, donc on ne prétend pas qu'elle est vide.
 export function buildPromotions(index) {
   const curricula = CURRICULA.map(({ id, name }) => ({
     id,
     name,
     promotions: index.promotions
       .filter((entry) => entry.curriculum === id)
-      .map((entry) => entry.label)
-      .sort(promotionCollator.compare),
+      .map((entry) => ({ label: entry.label, hasCourses: entry.hasCourses !== false }))
+      .sort((a, b) => promotionCollator.compare(a.label, b.label)),
   })).filter((curriculum) => curriculum.promotions.length > 0);
   return { updatedAt: index.updatedAt, curricula };
 }

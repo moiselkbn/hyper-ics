@@ -34,7 +34,27 @@ test('regroupe les promotions par cursus, dans l’ordre des cursus', () => {
 
 test('trie les promotions par année puis par nom', () => {
   const graphic = buildPromotions(INDEX).curricula.find(({ id }) => id === 'graphic-technics');
-  assert.deepEqual(graphic.promotions, ['1TGRA', '1TGRC1', '2TE', '2TI 3D-Video', '2TI Web', '3TI Web']);
+  assert.deepEqual(
+    graphic.promotions.map(({ label }) => label),
+    ['1TGRA', '1TGRC1', '2TE', '2TI 3D-Video', '2TI Web', '3TI Web'],
+  );
+});
+
+test('signale les promotions sans cours publié, sans deviner quand on ne sait pas', () => {
+  const index = {
+    updatedAt: INDEX.updatedAt,
+    promotions: [
+      { label: '1AT', curriculum: 'textile-arts', hasCourses: true },
+      { label: '2AT', curriculum: 'textile-arts', hasCourses: false },
+      { label: '3AT', curriculum: 'textile-arts' }, // index d'avant l'ajout du champ : inconnu
+    ],
+  };
+  const [textile] = buildPromotions(index).curricula;
+  assert.deepEqual(textile.promotions, [
+    { label: '1AT', hasCourses: true },
+    { label: '2AT', hasCourses: false },
+    { label: '3AT', hasCourses: true },
+  ]);
 });
 
 test('omet les cursus sans promotion', () => {

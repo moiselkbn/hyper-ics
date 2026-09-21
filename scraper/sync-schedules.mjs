@@ -26,6 +26,7 @@ export function buildScheduleRecord({ promotion, raw, firstMonday, now }) {
 export async function syncSchedules({ promotions, fetchRaw, redis, firstMonday, now = new Date(), log = () => {} }) {
   const written = [];
   const failed = [];
+  const hasCourses = new Map(); // promotion écrite -> son planning contient au moins un créneau
 
   for (const promotion of promotions) {
     try {
@@ -33,6 +34,7 @@ export async function syncSchedules({ promotions, fetchRaw, redis, firstMonday, 
       const record = buildScheduleRecord({ promotion, raw, firstMonday, now });
       await redis.setJson(scheduleKey(promotion.label), record);
       written.push(promotion.label);
+      hasCourses.set(promotion.label, record.courses.length > 0);
       log(`${promotion.label} : ${record.courses.length} créneaux écrits`);
     } catch (error) {
       failed.push({ label: promotion.label, message: error.message });
@@ -43,7 +45,7 @@ export async function syncSchedules({ promotions, fetchRaw, redis, firstMonday, 
   // Sans aucune écriture réussie, on garde l'ancienne liste.
   if (written.length > 0) {
     try {
-      await writeIndex({ promotions, written, redis, now });
+      await writeIndex({ promotions, written, hasCourses, redis, now });
     } catch (error) {
       failed.push({ label: SCHEDULE_INDEX_KEY, message: error.message });
       log(`${SCHEDULE_INDEX_KEY} : ÉCHEC (${error.message})`);
@@ -54,10 +56,16 @@ export async function syncSchedules({ promotions, fetchRaw, redis, firstMonday, 
 
 // La liste ne mentionne que des promotions qui ont un planning en base : celles écrites
 // maintenant, et celles déjà listées dont l'écriture vient d'échouer (leur ancien planning existe).
-async function writeIndex({ promotions, written, redis, now }) {
+// `hasCourses` permet à l'app d'indiquer « Aucun cours publié » sans lire les plannings ; une promotion
+// dont l'écriture échoue garde la valeur précédente, et le champ reste absent tant qu'on ne la connaît pas.
+async function writeIndex({ promotions, written, hasCourses, redis, now }) {
   const previous = (await redis.getJson(SCHEDULE_INDEX_KEY))?.promotions ?? [];
   const listed = promotions
     .filter(({ label }) => written.includes(label) || previous.some((entry) => entry.label === label))
-    .map(({ label }) => ({ label, curriculum: getCurriculum(label)?.id ?? null }));
+    .map(({ label }) => ({
+      label,
+      curriculum: getCurriculum(label)?.id ?? null,
+      hasCourses: hasCourses.get(label) ?? previous.find((entry) => entry.label === label)?.hasCourses,
+    }));
   await redis.setJson(SCHEDULE_INDEX_KEY, { updatedAt: now.toISOString(), promotions: listed });
 }

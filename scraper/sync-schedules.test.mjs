@@ -53,8 +53,38 @@ test('syncSchedules écrit un planning par promotion, puis la liste', async () =
   assert.equal(JSON.parse(redis.store.get(scheduleKey('3TI Web'))).courses.length, 1);
   assert.deepEqual(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)), {
     updatedAt: NOW.toISOString(),
-    promotions: [{ label: '3TI Web', curriculum: 'graphic-technics' }, { label: '1AT', curriculum: 'textile-arts' }],
+    promotions: [
+      { label: '3TI Web', curriculum: 'graphic-technics', hasCourses: true },
+      { label: '1AT', curriculum: 'textile-arts', hasCourses: true },
+    ],
   });
+});
+
+test("la liste indique si une promotion a des cours publiés", async () => {
+  const redis = fakeRedis();
+  const fetchRaw = async (p) => (p.label === '2PUBB' ? { ListeCours: [] } : rawWith('Cours'));
+  await run({ promotions: [promo('1AT'), promo('2PUBB')], fetchRaw, redis });
+  const entries = JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)).promotions;
+  assert.deepEqual(entries.map(({ label, hasCourses }) => [label, hasCourses]), [['1AT', true], ['2PUBB', false]]);
+});
+
+test("une promotion dont l'écriture échoue garde son ancien hasCourses, ou aucun s'il était inconnu", async () => {
+  const redis = fakeRedis({
+    initial: {
+      [SCHEDULE_INDEX_KEY]: {
+        promotions: [
+          { label: '3TI Web', curriculum: 'graphic-technics', hasCourses: false },
+          { label: '1AT', curriculum: 'textile-arts' }, // ancien format : pas de hasCourses
+        ],
+      },
+    },
+  });
+  const fetchRaw = async (p) => (p.label === '2AT' ? rawWith('Cours') : {});
+  await run({ promotions: [promo('3TI Web'), promo('1AT'), promo('2AT')], fetchRaw, redis });
+  const entries = JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)).promotions;
+  assert.equal(entries[0].hasCourses, false);
+  assert.equal('hasCourses' in entries[1], false);
+  assert.equal(entries[2].hasCourses, true);
 });
 
 test("un résultat douteux n'écrase pas l'ancien planning", async () => {
