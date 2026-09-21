@@ -7,7 +7,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --test scraper shared"
+    "test": "node --test scraper shared server"
   },
   "dependencies": {
     "@fontsource-variable/inter-tight": "^5.3.0",
