@@ -9,7 +9,7 @@
   white-space: nowrap;
 }
 
-.lesson-pill__code {
+.lesson-pill__subject {
   color: var(--background-dark);
   font-size: 10px;
 }

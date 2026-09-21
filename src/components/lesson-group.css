@@ -52,3 +52,13 @@
   border-radius: var(--space-2);
   background: var(--transparent-white-20);
 }
+
+/* Promotion sans aucun cours publié : même fond que la liste, pour garder la place du groupe. */
+.lesson-group__empty {
+  margin: 0;
+  padding: var(--space-2);
+  border-radius: var(--space-2);
+  background: var(--transparent-white-20);
+  color: var(--transparent-white-50);
+  font-size: 12px;
+}

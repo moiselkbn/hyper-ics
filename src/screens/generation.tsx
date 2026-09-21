@@ -60,7 +60,7 @@ export function Generation({ promotions, lessons, selected, onNext }: Generation
             style={PILL_SLOTS[index].style as CSSProperties}
           >
             <div className="generation__pill-path">
-              <LessonPill code={lesson.code} teacher={formatTeachers(lesson.teachers)} />
+              <LessonPill subject={lesson.subject} teacher={formatTeachers(lesson.teachers)} />
             </div>
           </div>
         ))}
@@ -74,7 +74,7 @@ export function Generation({ promotions, lessons, selected, onNext }: Generation
             <CalendarItem
               key={lesson.id}
               // Un cours commun appartient à plusieurs promotions : on montre celle de l'élève.
-              title={`${lesson.code} (${lesson.promotions.find((promotion) => promotions.includes(promotion))})`}
+              title={`${lesson.subject} (${lesson.promotions.find((promotion) => promotions.includes(promotion))})`}
               room={SAMPLE_SLOTS[index].room}
               time={SAMPLE_SLOTS[index].time}
               style={{ '--calendar-delay': `${index * 0.12}s` } as CSSProperties}

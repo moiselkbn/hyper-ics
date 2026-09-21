@@ -13,7 +13,8 @@ type LessonGroupProps = {
 // Cours d'une promotion, avec « Tout cocher » et « Tout décocher ».
 export function LessonGroup({ promotion, lessons, selected, onToggle, onToggleAll }: LessonGroupProps) {
   const lessonIds = lessons.map((lesson) => lesson.id);
-  const allChecked = lessons.every((lesson) => selected.has(lesson.id));
+  const hasLessons = lessons.length > 0;
+  const allChecked = hasLessons && lessons.every((lesson) => selected.has(lesson.id));
 
   return (
     <section className="lesson-group">
@@ -25,26 +26,32 @@ export function LessonGroup({ promotion, lessons, selected, onToggle, onToggleAl
           />
           {promotion}
         </h2>
-        <div className="lesson-group__actions">
-          <button className="lesson-group__action" type="button" onClick={() => onToggleAll(lessonIds, true)}>
-            Tout cocher
-          </button>
-          <button className="lesson-group__action" type="button" onClick={() => onToggleAll(lessonIds, false)}>
-            Tout décocher
-          </button>
+        {hasLessons && (
+          <div className="lesson-group__actions">
+            <button className="lesson-group__action" type="button" onClick={() => onToggleAll(lessonIds, true)}>
+              Tout cocher
+            </button>
+            <button className="lesson-group__action" type="button" onClick={() => onToggleAll(lessonIds, false)}>
+              Tout décocher
+            </button>
+          </div>
+        )}
+      </div>
+      {hasLessons ? (
+        <div className="lesson-group__list">
+          {lessons.map((lesson) => (
+            <CheckboxRow
+              key={lesson.id}
+              label={lesson.subject}
+              detail={formatTeachers(lesson.teachers)}
+              checked={selected.has(lesson.id)}
+              onChange={(checked) => onToggle(lesson.id, checked)}
+            />
+          ))}
         </div>
-      </div>
-      <div className="lesson-group__list">
-        {lessons.map((lesson) => (
-          <CheckboxRow
-            key={lesson.id}
-            label={lesson.code}
-            detail={formatTeachers(lesson.teachers)}
-            checked={selected.has(lesson.id)}
-            onChange={(checked) => onToggle(lesson.id, checked)}
-          />
-        ))}
-      </div>
+      ) : (
+        <p className="lesson-group__empty">Aucun cours publié</p>
+      )}
     </section>
   );
 }

@@ -13,7 +13,7 @@ type CurriculumGroupProps = {
 export function CurriculumGroup({ curriculum, selected, isDisabled, onToggle }: CurriculumGroupProps) {
   const [open, setOpen] = useState(false);
   const panelId = `curriculum-${curriculum.id}`;
-  const selectedCount = curriculum.promotions.filter((promotion) => selected.has(promotion)).length;
+  const selectedCount = curriculum.promotions.filter(({ label }) => selected.has(label)).length;
 
   return (
     <section className="curriculum-group">
@@ -33,13 +33,14 @@ export function CurriculumGroup({ curriculum, selected, isDisabled, onToggle }: 
       </button>
       {open && (
         <div className="curriculum-group__list" id={panelId}>
-          {curriculum.promotions.map((promotion) => (
+          {curriculum.promotions.map(({ label, hasCourses }) => (
             <CheckboxRow
-              key={promotion}
-              label={promotion}
-              checked={selected.has(promotion)}
-              disabled={isDisabled(promotion)}
-              onChange={(checked) => onToggle(promotion, checked)}
+              key={label}
+              label={label}
+              detail={hasCourses ? undefined : 'Aucun cours publié'}
+              checked={selected.has(label)}
+              disabled={isDisabled(label)}
+              onChange={(checked) => onToggle(label, checked)}
             />
           ))}
         </div>

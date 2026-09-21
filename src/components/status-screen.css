@@ -1,0 +1,21 @@
+.status-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 100dvh;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+}
+
+.status-screen__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.status-screen__message {
+  margin: 0;
+  color: var(--transparent-white-50);
+}

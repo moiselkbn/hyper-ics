@@ -31,7 +31,7 @@ export function SelectionReview({ promotions, lessons, selected, onBack, onNext 
           {selectedLessons.map((lesson) => (
             <li key={lesson.id} className="selection-review__lesson">
               <div className="selection-review__row">
-                <span className="selection-review__code">{lesson.code}</span>
+                <span className="selection-review__subject">{lesson.subject}</span>
                 {/* Seules les promotions choisies comptent : un cours commun n'a pas à les lister toutes. */}
                 <span className="selection-review__detail">
                   {lesson.promotions.filter((promotion) => promotions.includes(promotion)).join(', ')}
