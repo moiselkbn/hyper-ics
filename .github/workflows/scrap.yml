@@ -1,19 +1,30 @@
 name: Scrap Hyperplanning
 
+# Titre des runs : l'origine du déclenchement (qstash, schedule, manual…), pour les distinguer dans la liste.
+run-name: Scrap Hyperplanning (${{ inputs.source || github.event_name }})
+
 on:
-  schedule:
-    # Toutes les 15 minutes, de 5h à 16h UTC : couvre 7h–17h Europe/Brussels en été (UTC+2) comme en hiver
-    # (UTC+1). Le script écarte les heures hors plage (--only-in-hours).
-    # GitHub saute ou retarde des exécutions planifiées (constaté : 1 sur 6 en une matinée). On se déclenche donc
-    # 4 fois par heure, et --skip-if-fresh ne scrape que si le dernier scrap a plus de 50 minutes : environ un
-    # scrap par heure, sans requête de plus vers Hyperplanning. Les minutes évitent l'heure pile, très chargée.
-    - cron: '12,27,42,57 5-16 * * *'
+  # Déclencheur principal : un planificateur externe (QStash) appelle l'API GitHub (workflow_dispatch) toutes les
+  # 15 minutes. Le cron de GitHub ci-dessous ne suffit pas : il saute presque tous ses déclenchements (constaté :
+  # 1 run pour 13 créneaux en une journée). Il reste en renfort.
   workflow_dispatch:
     inputs:
       dry_run:
         description: 'Simulation : rien n’est écrit dans Redis'
         type: boolean
         default: false
+      force:
+        description: 'Scrap manuel : ignore les gardes d’heure et de fraîcheur'
+        type: boolean
+        default: false
+      source:
+        description: 'Origine du déclenchement, informatif (ex. qstash)'
+        type: string
+        default: ''
+  schedule:
+    # Toutes les 15 minutes, de 5h à 16h UTC : couvre 7h–17h Europe/Brussels en été (UTC+2) comme en hiver (UTC+1).
+    # Les minutes évitent l'heure pile, très chargée chez GitHub.
+    - cron: '12,27,42,57 5-16 * * *'
 
 permissions:
   contents: read
@@ -35,10 +46,13 @@ jobs:
         env:
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
-          EVENT: ${{ github.event_name }}
           DRY_RUN: ${{ inputs.dry_run }}
+          FORCE: ${{ inputs.force }}
         run: |
           args=()
-          if [ "$EVENT" = schedule ]; then args+=(--only-in-hours --skip-if-fresh); fi
+          # Les gardes d'heure et de fraîcheur s'appliquent à tout déclenchement, cron ou QStash : sans elles, chacun
+          # scraperait. Seuls un lancement forcé ou une simulation les ignorent. Par défaut elles sont actives, donc
+          # une erreur de réglage du planificateur fait ignorer des runs au lieu de charger Hyperplanning.
+          if [ "$FORCE" != true ] && [ "$DRY_RUN" != true ]; then args+=(--only-in-hours --skip-if-fresh); fi
           if [ "$DRY_RUN" = true ]; then args+=(--dry-run); fi
           node scraper/scrap-to-redis.mjs "${args[@]}"
