@@ -2,14 +2,18 @@ import { useState } from 'react';
 import { isPromotionDisabled, MOCK_CURRICULA } from './data/curricula';
 import { getDefaultLessonIds, MOCK_LESSONS } from './data/lessons';
 import { ClassChoice } from './screens/class-choice';
+import { FeedReady } from './screens/feed-ready';
 import { Generation } from './screens/generation';
 import { Landing } from './screens/landing';
 import { LessonChoice } from './screens/lesson-choice';
 import { SelectionReview } from './screens/selection-review';
 
+// Le jeton du flux n'est pas encore généré : URL factice en attendant.
+const MOCK_FEED_URL = 'hyperics.app/f/njifbzibfueifbzuii';
+
 export function App() {
   const [screen, setScreen] = useState<
-    'landing' | 'class-choice' | 'lesson-choice' | 'selection-review' | 'generation'
+    'landing' | 'class-choice' | 'lesson-choice' | 'selection-review' | 'generation' | 'feed-ready'
   >('landing');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [selectedLessons, setSelectedLessons] = useState<ReadonlySet<string>>(new Set());
@@ -79,14 +83,16 @@ export function App() {
     );
   }
 
-  return (
-    <Generation
-      promotions={[...selected]}
-      lessons={MOCK_LESSONS}
-      selected={selectedLessons}
-      onNext={() => {
-        // L'écran du lien ICS sera branché ici.
-      }}
-    />
-  );
+  if (screen === 'generation') {
+    return (
+      <Generation
+        promotions={[...selected]}
+        lessons={MOCK_LESSONS}
+        selected={selectedLessons}
+        onNext={() => setScreen('feed-ready')}
+      />
+    );
+  }
+
+  return <FeedReady feedUrl={MOCK_FEED_URL} onBack={() => setScreen('generation')} />;
 }

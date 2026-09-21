@@ -1,0 +1,131 @@
+.feed-ready {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 100dvh;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+}
+
+.feed-ready__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+/* --- Choix de la plateforme --- */
+
+.feed-ready__platforms {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.feed-ready__platform {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--transparent-white-20);
+  color: var(--white);
+  font-size: 16px;
+}
+
+.feed-ready__platform--active {
+  background: var(--white);
+  color: var(--background-dark);
+}
+
+/* --- Ajout au calendrier --- */
+
+.feed-ready__add {
+  gap: 10px;
+}
+
+/* --- Lien du flux --- */
+
+.feed-ready__hint {
+  margin: 0;
+  font-size: 14px;
+}
+
+.feed-ready__link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-self: center;
+  width: 251px;
+}
+
+.feed-ready__link-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-round);
+  background: var(--transparent-white-20);
+}
+
+.feed-ready__link-url {
+  flex: 1;
+  min-width: 0;
+  padding: 10px var(--space-2);
+  border-radius: var(--radius-round);
+  background: var(--background-dark);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-ready__copy {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-round);
+  background: var(--transparent-white-50);
+}
+
+/* Deux rectangles superposés, comme dans la maquette. */
+.feed-ready__copy-icon {
+  position: relative;
+  width: 12px;
+  height: 14px;
+}
+
+.feed-ready__copy-icon::before,
+.feed-ready__copy-icon::after {
+  content: '';
+  position: absolute;
+  width: 9.75px;
+  height: 11.79px;
+  background: var(--background-dark);
+}
+
+.feed-ready__copy-icon::before {
+  top: 2.21px;
+  left: 0;
+  border-radius: 1.84px;
+}
+
+.feed-ready__copy-icon::after {
+  top: 0;
+  left: 2.25px;
+  border: 0.737px solid #9e9f9d;
+  border-radius: 1.47px;
+}
+
+.feed-ready__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
