@@ -2,10 +2,12 @@ name: Scrap Hyperplanning
 
 on:
   schedule:
-    # Toutes les heures à HH:17 UTC, de 5h à 16h : couvre 7h–17h Europe/Brussels en été (UTC+2)
-    # comme en hiver (UTC+1). Le script écarte les heures hors plage (--only-in-hours).
-    # La minute 17 évite l'heure pile, où GitHub retarde ou saute des exécutions.
-    - cron: '17 5-16 * * *'
+    # Toutes les 15 minutes, de 5h à 16h UTC : couvre 7h–17h Europe/Brussels en été (UTC+2) comme en hiver
+    # (UTC+1). Le script écarte les heures hors plage (--only-in-hours).
+    # GitHub saute ou retarde des exécutions planifiées (constaté : 1 sur 6 en une matinée). On se déclenche donc
+    # 4 fois par heure, et --skip-if-fresh ne scrape que si le dernier scrap a plus de 50 minutes : environ un
+    # scrap par heure, sans requête de plus vers Hyperplanning. Les minutes évitent l'heure pile, très chargée.
+    - cron: '12,27,42,57 5-16 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -37,6 +39,6 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           args=()
-          if [ "$EVENT" = schedule ]; then args+=(--only-in-hours); fi
+          if [ "$EVENT" = schedule ]; then args+=(--only-in-hours --skip-if-fresh); fi
           if [ "$DRY_RUN" = true ]; then args+=(--dry-run); fi
           node scraper/scrap-to-redis.mjs "${args[@]}"

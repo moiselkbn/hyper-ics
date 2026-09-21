@@ -14,3 +14,14 @@ export function isWithinScrapHours(date) {
   const hour = brusselsHour(date);
   return hour >= FIRST_HOUR && hour <= LAST_HOUR;
 }
+
+// GitHub saute ou retarde des exécutions planifiées. Le workflow se déclenche donc toutes les 15 minutes, et un
+// scrap réussi depuis moins de FRESH_MINUTES rend les suivants inutiles : cela garde environ un scrap par heure,
+// sans requête de plus vers Hyperplanning, et un déclenchement manqué est rattrapé par le suivant.
+export const FRESH_MINUTES = 50;
+
+// `updatedAt` : date ISO du dernier scrap réussi (celle de `schedule-index`). Absente, invalide ou dans le futur : pas frais.
+export function isFresh(updatedAt, now) {
+  const age = now - new Date(updatedAt);
+  return age >= 0 && age < FRESH_MINUTES * 60_000;
+}

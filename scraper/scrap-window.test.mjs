@@ -1,7 +1,7 @@
 // Lancer avec : node --test scraper/
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { brusselsHour, isWithinScrapHours } from './scrap-window.mjs';
+import { brusselsHour, FRESH_MINUTES, isFresh, isWithinScrapHours } from './scrap-window.mjs';
 
 test('brusselsHour convertit l’heure UTC en heure de Bruxelles', () => {
   assert.equal(brusselsHour(new Date('2026-07-15T05:17:00Z')), 7); // été : UTC+2
@@ -45,4 +45,75 @@ test('chaque jour, les heures UTC du cron (5h à 16h) couvrent toute la plage lo
     }
     assert.deepEqual(inRange, [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], day);
   }
+});
+
+// --- Garde de fraîcheur : le cron se déclenche toutes les 15 minutes, on ne scrape qu'environ une fois par heure.
+
+const NOW = new Date('2026-09-21T10:00:00Z');
+const minutesAgo = (minutes) => new Date(NOW - minutes * 60_000).toISOString();
+
+test('un scrap récent est frais, un scrap ancien ne l’est plus', () => {
+  assert.equal(isFresh(minutesAgo(0), NOW), true);
+  assert.equal(isFresh(minutesAgo(15), NOW), true);
+  assert.equal(isFresh(minutesAgo(120), NOW), false);
+});
+
+test('la limite de fraîcheur est FRESH_MINUTES', () => {
+  assert.equal(FRESH_MINUTES, 50);
+  assert.equal(isFresh(minutesAgo(FRESH_MINUTES - 1), NOW), true);
+  assert.equal(isFresh(minutesAgo(FRESH_MINUTES), NOW), false);
+});
+
+test('un index absent, invalide ou daté du futur n’est pas frais', () => {
+  assert.equal(isFresh(undefined, NOW), false);
+  assert.equal(isFresh(null, NOW), false);
+  assert.equal(isFresh('pas une date', NOW), false);
+  assert.equal(isFresh(minutesAgo(-5), NOW), false);
+});
+
+// Joue les déclenchements (HH:12, :27, :42, :57) : renvoie les instants où un vrai scrap a lieu.
+function simulate({ from, hours, dropped = () => false, lastScrap = null }) {
+  const scraps = [];
+  let updatedAt = lastScrap;
+  for (let step = 0; step < hours * 4; step++) {
+    const tick = new Date(from.getTime() + step * 15 * 60_000);
+    if (dropped(tick)) continue;
+    if (!isFresh(updatedAt, tick)) {
+      scraps.push(tick.toISOString().slice(11, 16));
+      updatedAt = tick.toISOString();
+    }
+  }
+  return scraps;
+}
+
+test('quand tous les déclenchements arrivent, un scrap a lieu toutes les heures', () => {
+  const scraps = simulate({ from: new Date('2026-09-21T05:12:00Z'), hours: 6 });
+  assert.deepEqual(scraps, ['05:12', '06:12', '07:12', '08:12', '09:12', '10:12']);
+});
+
+test('un déclenchement manqué est rattrapé par le suivant', () => {
+  // Le scrap de 07:12 est perdu : celui de 07:27 le remplace, puis le rythme repart de là.
+  const scraps = simulate({
+    from: new Date('2026-09-21T05:12:00Z'),
+    hours: 4,
+    dropped: (tick) => tick.toISOString().slice(11, 16) === '07:12',
+  });
+  assert.deepEqual(scraps, ['05:12', '06:12', '07:27', '08:27']);
+});
+
+test('même si 3 déclenchements sur 4 sont perdus, chaque heure a son scrap', () => {
+  const scraps = simulate({
+    from: new Date('2026-09-21T05:12:00Z'),
+    hours: 6,
+    dropped: (tick) => tick.getUTCMinutes() !== 42,
+  });
+  assert.deepEqual(scraps, ['05:42', '06:42', '07:42', '08:42', '09:42', '10:42']);
+});
+
+test('un déclenchement isolé ne scrape pas si le dernier scrap est récent', () => {
+  // Trois déclenchements : 09:27, 09:42 et 09:57, tous à moins de 50 minutes de 09:12.
+  const scraps = simulate({ from: new Date('2026-09-21T09:27:00Z'), hours: 0.75, lastScrap: '2026-09-21T09:12:00.000Z' });
+  assert.deepEqual(scraps, []);
+  // Le suivant, à 10:12, est à 60 minutes : il scrape.
+  assert.deepEqual(simulate({ from: new Date('2026-09-21T10:12:00Z'), hours: 0.25, lastScrap: '2026-09-21T09:12:00.000Z' }), ['10:12']);
 });
