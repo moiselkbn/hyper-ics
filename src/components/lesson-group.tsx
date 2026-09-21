@@ -1,4 +1,4 @@
-import type { Lesson } from '../data/lessons';
+import { formatTeachers, type Lesson } from '../data/lessons';
 import { CheckboxRow } from './checkbox-row';
 import './lesson-group.css';
 
@@ -39,7 +39,7 @@ export function LessonGroup({ promotion, lessons, selected, onToggle, onToggleAl
           <CheckboxRow
             key={lesson.id}
             label={lesson.code}
-            detail={lesson.teacher}
+            detail={formatTeachers(lesson.teachers)}
             checked={selected.has(lesson.id)}
             onChange={(checked) => onToggle(lesson.id, checked)}
           />

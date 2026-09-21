@@ -2,7 +2,7 @@ import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
 import { Stepper } from '../components/stepper';
 import { StepTitle } from '../components/step-title';
-import type { Lesson } from '../data/lessons';
+import { formatTeachers, type Lesson } from '../data/lessons';
 import './selection-review.css';
 
 type SelectionReviewProps = {
@@ -37,7 +37,7 @@ export function SelectionReview({ promotions, lessons, selected, onBack, onNext 
                   {lesson.promotions.filter((promotion) => promotions.includes(promotion)).join(', ')}
                 </span>
               </div>
-              <span className="selection-review__detail">{lesson.teacher}</span>
+              <span className="selection-review__detail">{formatTeachers(lesson.teachers)}</span>
             </li>
           ))}
         </ul>

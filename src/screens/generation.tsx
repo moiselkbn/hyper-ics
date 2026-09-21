@@ -4,7 +4,7 @@ import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
 import { CalendarItem } from '../components/calendar-item';
 import { LessonPill } from '../components/lesson-pill';
-import type { Lesson } from '../data/lessons';
+import { formatTeachers, type Lesson } from '../data/lessons';
 import './generation.css';
 
 // Doit rester aligné sur --generation-loop dans generation.css.
@@ -60,7 +60,7 @@ export function Generation({ promotions, lessons, selected, onNext }: Generation
             style={PILL_SLOTS[index].style as CSSProperties}
           >
             <div className="generation__pill-path">
-              <LessonPill code={lesson.code} teacher={lesson.teacher} />
+              <LessonPill code={lesson.code} teacher={formatTeachers(lesson.teachers)} />
             </div>
           </div>
         ))}

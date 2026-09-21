@@ -4,9 +4,15 @@ import { MOCK_CURRICULA } from './curricula';
 export type Lesson = {
   id: string;
   code: string;
-  teacher: string;
+  teachers: string[];
   promotions: string[];
 };
+
+// Un prof est toujours affiché ; s'il y en a d'autres, on ajoute leur nombre (« Lemal +2 »).
+export function formatTeachers(teachers: string[]): string {
+  if (teachers.length <= 1) return teachers[0] ?? '';
+  return `${teachers[0]} +${teachers.length - 1}`;
+}
 
 const MOCK_TEACHERS = ['Lemal', 'Dupont', 'Martin', 'Leroy'];
 const MOCK_LESSONS_PER_PROMOTION = 5;
@@ -15,12 +21,12 @@ const ALL_PROMOTIONS = MOCK_CURRICULA.flatMap((curriculum) => curriculum.promoti
 
 // Cours factices : ils viendront de l'API (schedule-index).
 export const MOCK_LESSONS: Lesson[] = [
-  { id: 'common-english', code: 'Anglais', teacher: 'Martin', promotions: ALL_PROMOTIONS },
+  { id: 'common-english', code: 'Anglais', teachers: ['Martin', 'Dupont'], promotions: ALL_PROMOTIONS },
   ...ALL_PROMOTIONS.flatMap((promotion) =>
     Array.from({ length: MOCK_LESSONS_PER_PROMOTION }, (_, index) => ({
       id: `${promotion}-${index + 1}`,
       code: `${promotion} C${index + 1}`,
-      teacher: MOCK_TEACHERS[index % MOCK_TEACHERS.length],
+      teachers: [MOCK_TEACHERS[index % MOCK_TEACHERS.length]],
       promotions: [promotion],
     })),
   ),
