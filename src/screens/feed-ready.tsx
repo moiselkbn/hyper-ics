@@ -23,10 +23,24 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
   const [platform, setPlatform] = useState<string>(PLATFORMS[0].id);
   const [isCopied, setIsCopied] = useState(false);
   const current = PLATFORMS.find((entry) => entry.id === platform) ?? PLATFORMS[0];
+  const bareFeedUrl = feedUrl.replace(/^[a-z]+:\/\//i, '');
 
   async function copyFeedUrl() {
     await navigator.clipboard.writeText(feedUrl);
     setIsCopied(true);
+  }
+
+  function addToCalendar() {
+    if (platform === 'chrome') {
+      const webcalUrl = `webcal://${bareFeedUrl}`;
+      window.open(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`, '_blank', 'noopener');
+      return;
+    }
+    if (platform === 'desktop') {
+      window.location.href = `https://${bareFeedUrl}`;
+      return;
+    }
+    window.location.href = `webcal://${bareFeedUrl}`;
   }
 
   return (
@@ -54,8 +68,7 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
         ))}
       </div>
 
-      {/* L'ajout au calendrier sera branché ici. */}
-      <Button className="feed-ready__add">
+      <Button className="feed-ready__add" onClick={addToCalendar}>
         {current.action}
         <img className="feed-ready__add-icon" src={arrowUpRightUrl} alt="" width={13} height={13} />
       </Button>
