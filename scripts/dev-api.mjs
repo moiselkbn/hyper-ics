@@ -11,6 +11,12 @@ const send = (res, status, body) => {
   res.end(JSON.stringify({ error: body }));
 };
 
+const readBody = async (req) => {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return Buffer.concat(chunks);
+};
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
@@ -22,7 +28,10 @@ const server = createServer(async (req, res) => {
     const handler = route[req.method];
     if (typeof handler !== 'function') return send(res, 405, 'Méthode non autorisée');
 
-    const response = await handler(new Request(url, { method: req.method, headers: req.headers }));
+    // GET/HEAD n'ont pas de corps ; fetch refuse même un Request GET avec un body défini.
+    const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+    const body = hasBody ? await readBody(req) : undefined;
+    const response = await handler(new Request(url, { method: req.method, headers: req.headers, body }));
     res.writeHead(response.status, Object.fromEntries(response.headers));
     res.end(Buffer.from(await response.arrayBuffer()));
   } catch (error) {

@@ -13,8 +13,23 @@ export class HttpError extends Error {
 
 export const jsonResponse = (body) => Response.json(body, { headers: { ...HEADERS, 'Cache-Control': CACHED } });
 
+// Pour une réponse unique à cet appel (ex. la création d'un jeton) : rien à mettre en cache.
+export const jsonNoStore = (body) => Response.json(body, { headers: { ...HEADERS, 'Cache-Control': 'no-store' } });
+
 export const errorResponse = (status, message) =>
   Response.json({ error: message }, { status, headers: { ...HEADERS, 'Cache-Control': 'no-store' } });
+
+// Le flux ICS d'un élève : même politique de cache que les données de planning dont il dérive,
+// et `Content-Disposition` pour que « télécharger le .ics » déclenche bien un téléchargement de fichier.
+export const icsResponse = (text) =>
+  new Response(text, {
+    headers: {
+      ...HEADERS,
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="hyperics.ics"',
+      'Cache-Control': CACHED,
+    },
+  });
 
 // Exécute une action de l'API et convertit toute erreur en réponse JSON.
 export async function respond(action) {

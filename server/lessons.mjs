@@ -13,6 +13,11 @@ export function parsePromotions(searchParams) {
     .split(',')
     .map((label) => label.trim())
     .filter(Boolean);
+  return validatePromotionLabels(labels);
+}
+
+// Mêmes règles que parsePromotions, mais pour un tableau déjà découpé (ex. le corps JSON de POST /api/feed).
+export function validatePromotionLabels(labels) {
   const unique = [...new Set(labels)];
   if (unique.length === 0) throw new HttpError(400, 'Paramètre promotions manquant');
   if (unique.length > MAX_PROMOTIONS) throw new HttpError(400, `${MAX_PROMOTIONS} promotions au maximum`);
@@ -97,7 +102,7 @@ function mergeSimultaneous(lessons) {
 //  1. même code ET même matière (jamais de fausse fusion : un code peut couvrir deux matières) ;
 //  2. même matière au même moment (voir mergeSimultaneous), qui règle les cours sans code.
 // Le reste est laissé séparé, même à matière identique : ce sont deux cours distincts (autres moments, autres codes).
-export function buildLessons(records) {
+function mergeLessonsFromRecords(records) {
   const byCode = new Map();
   for (const record of records) {
     for (const course of coursesOfPromotion(record)) {
@@ -107,12 +112,17 @@ export function buildLessons(records) {
       else byCode.set(id, lesson);
     }
   }
+  return mergeSimultaneous([...byCode.values()].sort((a, b) => (a.id < b.id ? -1 : 1)));
+}
 
-  const merged = mergeSimultaneous([...byCode.values()].sort((a, b) => (a.id < b.id ? -1 : 1)));
+// La plus ancienne des dates de scrap : c'est la fraîcheur garantie de la réponse.
+const freshnessOf = (records) => records.map((record) => record.scrapedAt).sort()[0] ?? null;
+
+export function buildLessons(records) {
+  const merged = mergeLessonsFromRecords(records);
   const order = new Map(records.map((record, index) => [record.promotion, index]));
   return {
-    // La plus ancienne des dates de scrap : c'est la fraîcheur garantie de la réponse.
-    updatedAt: records.map((record) => record.scrapedAt).sort()[0] ?? null,
+    updatedAt: freshnessOf(records),
     lessons: merged
       .map(({ id, subject, code, teachers, mandatory, promotions }) => ({
         id,
@@ -124,6 +134,12 @@ export function buildLessons(records) {
       }))
       .sort((a, b) => promotionCollator.compare(a.subject, b.subject) || promotionCollator.compare(a.id, b.id)),
   };
+}
+
+// Comme buildLessons, mais garde les occurrences (« semaine|jour|début|fin ») que l'API publique
+// n'expose pas : c'est ce dont le flux ICS a besoin pour placer les événements dans le temps.
+export function buildDetailedLessons(records) {
+  return mergeLessonsFromRecords(records).map((lesson) => ({ ...lesson, occurrences: [...lesson.occurrences] }));
 }
 
 export async function getLessons(redis, url) {
