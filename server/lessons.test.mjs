@@ -3,14 +3,17 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { courseKey } from '../shared/course-key.mjs';
 import { scheduleKey } from '../shared/redis-keys.mjs';
-import { buildLessons, getLessons, parsePromotions } from './lessons.mjs';
+import { buildDetailedLessons, buildLessons, getLessons, parsePromotions } from './lessons.mjs';
 
 // Un créneau tel que l'écrit le scrap (voir buildScheduleRecord).
-const slot = ({ subject, code = null, teachers = [], day = 0, start = '09:00', end = '11:00', weeks = [1, 2, 3] }) => ({
+const slot = ({
+  subject, code = null, teachers = [], day = 0, start = '09:00', end = '11:00', weeks = [1, 2, 3], rooms = [], roomsByWeek,
+}) => ({
   code,
   subject,
   teachers,
-  rooms: [],
+  rooms,
+  ...(roomsByWeek ? { roomsByWeek } : {}),
   note: null,
   day,
   start,
@@ -199,6 +202,34 @@ test('trie les cours par matière et renvoie la plus ancienne date de scrap', ()
 
 test('une promotion sans cours donne une liste vide', () => {
   assert.deepEqual(buildLessons([record('2PUBB', [])]).lessons, []);
+});
+
+// --- Salles : une par occurrence, jamais assemblées entre elles (voir scraper/resolve-rooms.mjs).
+
+test('une même salle sur toutes les semaines s’applique à chaque occurrence', () => {
+  const [lesson] = buildDetailedLessons([
+    record('3TI Web', [slot({ subject: 'Anglais Q5', weeks: [2, 3], rooms: ['L520'] })]),
+  ]);
+  assert.deepEqual(lesson.roomsByOccurrence, { '2|0|09:00|11:00': ['L520'], '3|0|09:00|11:00': ['L520'] });
+});
+
+test('roomsByWeek distingue la salle de chaque occurrence, sans les assembler', () => {
+  const [lesson] = buildDetailedLessons([
+    record('3TI Web', [
+      slot({
+        subject: 'Anglais Q5',
+        weeks: [2, 3, 10, 11],
+        rooms: ['L320', 'L316'], // salle ambiguë sur l'ensemble du créneau (avant résolution)
+        roomsByWeek: { 2: ['L320'], 3: ['L320'], 10: ['L316'], 11: ['L316'] },
+      }),
+    ]),
+  ]);
+  assert.deepEqual(lesson.roomsByOccurrence, {
+    '2|0|09:00|11:00': ['L320'],
+    '3|0|09:00|11:00': ['L320'],
+    '10|0|09:00|11:00': ['L316'],
+    '11|0|09:00|11:00': ['L316'],
+  });
 });
 
 test('parsePromotions découpe, nettoie et dédoublonne', () => {

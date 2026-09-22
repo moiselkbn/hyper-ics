@@ -52,6 +52,7 @@ if (promotions.length === 0) {
 const { written, failed } = await syncSchedules({
   promotions,
   fetchRaw: (promotion) => fetchRawSchedule(session, promotion),
+  fetchRawWeeks: (promotion, weeksRange) => fetchRawSchedule(session, promotion, weeksRange),
   redis,
   firstMonday: parseDate(generalParams.PremierLundi.V),
   log,

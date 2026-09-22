@@ -23,6 +23,26 @@ export function parseWeeks(domain) {
     });
 }
 
+// Inverse de parseWeeks (sans les crochets, comme l'attend `Domaine.V` en requête) :
+// [2, 3, 4, 5, 6, 10, 11] -> « 2..6,10..11 ». Une semaine isolée reste un simple nombre.
+export function formatWeeksRange(weeks) {
+  const sorted = [...weeks].sort((a, b) => a - b);
+  const parts = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i <= sorted.length; i++) {
+    const current = sorted[i];
+    if (current === prev + 1) {
+      prev = current;
+      continue;
+    }
+    parts.push(start === prev ? `${start}` : `${start}..${prev}`);
+    start = current;
+    prev = current;
+  }
+  return parts.join(',');
+}
+
 // « 14/09/2026 » -> « 2026-09-14 »
 export function parseDate(text) {
   const [day, month, year] = text.split('/');

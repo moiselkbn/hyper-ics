@@ -3,6 +3,7 @@ import { courseKey } from '../shared/course-key.mjs';
 import { SCHEDULE_INDEX_KEY, scheduleKey } from '../shared/redis-keys.mjs';
 import { getCurriculum } from './campus-scope.mjs';
 import { parseCourses } from './parse-schedule.mjs';
+import { resolveAmbiguousRooms } from './resolve-rooms.mjs';
 
 // Contenu de `schedule:<promotion>`. Chaque créneau porte la clé de son cours ;
 // les créneaux d'un même cours (plusieurs occurrences par semaine) se regroupent à la lecture.
@@ -23,7 +24,10 @@ export function buildScheduleRecord({ promotion, raw, firstMonday, now }) {
 }
 
 // Une promotion en échec garde son ancien planning : on ne l'écrase jamais avec un résultat douteux.
-export async function syncSchedules({ promotions, fetchRaw, redis, firstMonday, now = new Date(), log = () => {} }) {
+// `fetchRawWeeks(promotion, weeksRangeText)` : même requête que `fetchRaw`, sur une plage de semaines
+// réduite ; sert à affiner les créneaux dont la salle change en cours d'année (voir resolve-rooms.mjs).
+// Optionnel : sans lui, les créneaux ambigus gardent leurs salles telles quelles, sans requête de plus.
+export async function syncSchedules({ promotions, fetchRaw, fetchRawWeeks, redis, firstMonday, now = new Date(), log = () => {} }) {
   const written = [];
   const failed = [];
   const hasCourses = new Map(); // promotion écrite -> son planning contient au moins un créneau
@@ -32,6 +36,9 @@ export async function syncSchedules({ promotions, fetchRaw, redis, firstMonday, 
     try {
       const raw = await fetchRaw(promotion);
       const record = buildScheduleRecord({ promotion, raw, firstMonday, now });
+      if (fetchRawWeeks) {
+        record.courses = await resolveAmbiguousRooms((weeksRange) => fetchRawWeeks(promotion, weeksRange), record.courses);
+      }
       await redis.setJson(scheduleKey(promotion.label), record);
       written.push(promotion.label);
       hasCourses.set(promotion.label, record.courses.length > 0);

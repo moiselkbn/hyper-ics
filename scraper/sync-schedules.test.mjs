@@ -112,6 +112,43 @@ test("la liste garde une promotion déjà listée dont l'écriture échoue, pas 
   assert.deepEqual(labels, ['3TI Web', '2AT']); // 1AT n'a jamais eu de planning : absent
 });
 
+// Cours à deux salles sur deux semaines : ambigu tant que `fetchRawWeeks` n'a pas tranché.
+const rawAmbiguous = ({ dom, rooms }) => ({
+  ListeCours: [{
+    p: 4, d: 4, dom,
+    listeC: [{ G: 14, C: [{ L: '<3TI Web>TLAE-501' }] }, { G: 0, C: { L: 'Anglais Q5' } }, { G: 3, C: rooms.map((L) => ({ L })) }],
+  }],
+});
+
+test('syncSchedules affine la salle par semaine quand fetchRawWeeks est fourni', async () => {
+  const redis = fakeRedis();
+  const fetchRawWeeks = async (promotion, weeksRange) => {
+    if (weeksRange === '2') return rawAmbiguous({ dom: '[2]', rooms: ['L320'] });
+    if (weeksRange === '10') return rawAmbiguous({ dom: '[10]', rooms: ['L316'] });
+    throw new Error(`plage inattendue : ${weeksRange}`);
+  };
+  await run({
+    promotions: [promo('3TI Web')],
+    fetchRaw: async () => rawAmbiguous({ dom: '[2,10]', rooms: ['L320', 'L316'] }),
+    fetchRawWeeks,
+    redis,
+  });
+  const { courses } = JSON.parse(redis.store.get(scheduleKey('3TI Web')));
+  assert.deepEqual(courses[0].roomsByWeek, { 2: ['L320'], 10: ['L316'] });
+});
+
+test('syncSchedules sans fetchRawWeeks garde les salles ambiguës telles quelles', async () => {
+  const redis = fakeRedis();
+  await run({
+    promotions: [promo('3TI Web')],
+    fetchRaw: async () => rawAmbiguous({ dom: '[2,10]', rooms: ['L320', 'L316'] }),
+    redis,
+  });
+  const { courses } = JSON.parse(redis.store.get(scheduleKey('3TI Web')));
+  assert.deepEqual(courses[0].rooms, ['L320', 'L316']);
+  assert.equal('roomsByWeek' in courses[0], false);
+});
+
 test("sans aucune écriture réussie, la liste existante n'est pas touchée", async () => {
   const previous = { updatedAt: 'avant', promotions: [{ label: '3TI Web', curriculum: 'graphic-technics' }] };
   const redis = fakeRedis({ initial: { [SCHEDULE_INDEX_KEY]: previous } });

@@ -46,13 +46,16 @@ function coursesOfPromotion(record) {
     for (const week of slot.weeks) {
       const occurrence = `${week}|${slot.day}|${slot.start}|${slot.end}`;
       course.occurrences.add(occurrence);
-      if (slot.rooms.length === 0) continue;
+      // `roomsByWeek` : salle résolue semaine par semaine quand elle change en cours d'année
+      // (scraper/resolve-rooms.mjs). Sans lui, la même salle s'applique à toutes les semaines du créneau.
+      const weekRooms = slot.roomsByWeek ? (slot.roomsByWeek[week] ?? []) : slot.rooms;
+      if (weekRooms.length === 0) continue;
       let rooms = course.roomsByOccurrence.get(occurrence);
       if (!rooms) {
         rooms = new Set();
         course.roomsByOccurrence.set(occurrence, rooms);
       }
-      for (const room of slot.rooms) rooms.add(room);
+      for (const room of weekRooms) rooms.add(room);
     }
   }
   return [...courses.values()];
