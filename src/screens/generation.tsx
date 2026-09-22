@@ -4,7 +4,7 @@ import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
 import { CalendarItem } from '../components/calendar-item';
 import { LessonPill } from '../components/lesson-pill';
-import { formatTeachers, type Lesson } from '../data/lessons';
+import { formatTeachers, getSelectableLessons, type Lesson } from '../data/lessons';
 import './generation.css';
 
 // Doit rester aligné sur --generation-loop dans generation.css.
@@ -35,7 +35,10 @@ type GenerationProps = {
 // Étape 4 : le calendrier se construit, l'animation tourne en boucle.
 export function Generation({ promotions, lessons, selected, onNext }: GenerationProps) {
   const [isReady, setIsReady] = useState(false);
-  const featured = lessons.filter((lesson) => selected.has(lesson.id)).slice(0, PILL_SLOTS.length);
+  // Aligné sur le récapitulatif : les cours obligatoires (sans code) n'y figurent pas.
+  const featured = getSelectableLessons(lessons)
+    .filter((lesson) => selected.has(lesson.id))
+    .slice(0, PILL_SLOTS.length);
 
   // Le bouton n'apparaît qu'une fois la première boucle terminée.
   useEffect(() => {
