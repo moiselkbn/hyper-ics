@@ -36,8 +36,8 @@
 .checkbox-row__input:checked + .checkbox-row__box::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 6px;
+  top: 3px;
+  left: 7px;
   width: 5px;
   height: 10px;
   border: solid var(--background-dark);
