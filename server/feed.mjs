@@ -53,6 +53,8 @@ export async function getFeedIcs(redis, url) {
   const lessons = buildDetailedLessons(records).filter(
     (lesson) => lesson.mandatory || selection.lessonIds.includes(lesson.id),
   );
+  // D'après `records`, pas `selection.promotions` : une promotion disparue entre-temps (filtrée plus haut)
+  // ne doit pas déclencher la précision de promotion sur les cours de celle qui reste.
   // Sans promotion connue, `lessons` est déjà vide : buildIcs ne lit alors jamais firstMonday.
-  return icsResponse(buildIcs(lessons, records[0]?.firstMonday ?? null));
+  return icsResponse(buildIcs(lessons, records[0]?.firstMonday ?? null, records.map((record) => record.promotion)));
 }

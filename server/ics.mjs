@@ -91,7 +91,15 @@ function compareOccurrences(a, b) {
   return Number(aWeek) - Number(bWeek) || Number(aDay) - Number(bDay) || aStart.localeCompare(bStart);
 }
 
-function buildEvent(lesson, occurrence, firstMonday, now) {
+// Un élève en chevauchement (deux promotions suivies) a besoin de savoir à quelle promotion rattacher
+// chaque cours : son libellé seul ne suffit plus. Inutile en dessous de deux promotions, où tous les
+// cours du flux sont forcément ceux de l'unique promotion choisie.
+function summaryOf(lesson, showPromotion) {
+  if (!showPromotion) return lesson.subject;
+  return `${lesson.subject} (${lesson.promotions.join(', ')})`;
+}
+
+function buildEvent(lesson, occurrence, firstMonday, now, showPromotion) {
   const [week, day, start, end] = occurrence.split('|');
   const { year, month, day: date } = occurrenceDate(firstMonday, Number(week), Number(day));
   const [startHour, startMinute] = start.split(':').map(Number);
@@ -106,7 +114,7 @@ function buildEvent(lesson, occurrence, firstMonday, now) {
     `DTSTAMP:${formatIcsUtc(now)}`,
     `DTSTART;TZID=${BRUSSELS_TZID}:${formatIcsLocal(year, month, date, startHour, startMinute)}`,
     `DTEND;TZID=${BRUSSELS_TZID}:${formatIcsLocal(year, month, date, endHour, endMinute)}`,
-    `SUMMARY:${escapeText(lesson.subject)}`,
+    `SUMMARY:${escapeText(summaryOf(lesson, showPromotion))}`,
   ];
   if (lesson.teachers.length > 0) lines.push(`DESCRIPTION:${escapeText(formatTeachers(lesson.teachers))}`);
   if (rooms.length > 0) lines.push(`LOCATION:${escapeText(rooms.join(', '))}`);
@@ -116,7 +124,10 @@ function buildEvent(lesson, occurrence, firstMonday, now) {
 
 // `lessons` : sortie de buildDetailedLessons (server/lessons.mjs), déjà filtrée sur la sélection de l'élève.
 // `firstMonday` : lundi de la semaine 1 (« AAAA-MM-JJ »), commun à toutes les promotions d'une même session.
-export function buildIcs(lessons, firstMonday, now = new Date()) {
+// `promotions` : promotions choisies par l'élève (server/feed.mjs) ; au-delà d'une, chaque SUMMARY précise
+// à laquelle son cours appartient (chevauchement).
+export function buildIcs(lessons, firstMonday, promotions = [], now = new Date()) {
+  const showPromotion = promotions.length > 1;
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -127,7 +138,7 @@ export function buildIcs(lessons, firstMonday, now = new Date()) {
   ];
   for (const lesson of lessons) {
     for (const occurrence of [...lesson.occurrences].sort(compareOccurrences)) {
-      lines.push(...buildEvent(lesson, occurrence, firstMonday, now));
+      lines.push(...buildEvent(lesson, occurrence, firstMonday, now, showPromotion));
     }
   }
   lines.push('END:VCALENDAR');
