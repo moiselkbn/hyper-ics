@@ -56,11 +56,10 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
       window.open(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`, '_blank', 'noopener');
       return;
     }
-    if (platform === 'desktop') {
-      window.location.href = `https://${bareFeedUrl}`;
-      return;
-    }
-    window.location.href = `webcal://${bareFeedUrl}`;
+    // iOS traduit webcal:// en http:// en interne, puis ne suit pas la redirection http→https
+    // imposée par Vercel (bug connu, contrairement à macOS qui la suit) : Safari en https direct
+    // évite cette étape et propose quand même l'abonnement natif, grâce au Content-Type ICS.
+    window.location.href = `https://${bareFeedUrl}`;
   }
 
   return (
