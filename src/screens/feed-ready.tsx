@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import arrowUpRightUrl from '../assets/arrow-up-right.svg';
 import checkBadgeUrl from '../assets/check-badge.svg';
+import { AddToHomeScreen } from '../components/add-to-home-screen';
 import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
 import './feed-ready.css';
@@ -91,6 +92,8 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
       <p className="feed-ready__status" role="status">
         {isCopied ? 'Lien copié.' : ''}
       </p>
+
+      <AddToHomeScreen />
     </div>
   );
 }

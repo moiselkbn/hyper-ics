@@ -1,0 +1,11 @@
+.add-to-home-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.add-to-home-screen__steps {
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+}
