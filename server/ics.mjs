@@ -4,8 +4,30 @@
 import { createHash } from 'node:crypto';
 
 const MAX_LINE_OCTETS = 75;
-// Europe/Brussels bascule CET (+1) / CEST (+2) uniquement, jamais de décalage en minutes.
-const OFFSET_FORMATTER = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Brussels', timeZoneName: 'shortOffset' });
+const BRUSSELS_TZID = 'Europe/Brussels';
+
+// Définition standard du fuseau Europe/Brussels (règle CET/CEST commune à l'UE depuis 1996, dernier
+// dimanche de mars/octobre) : incluse dans le flux pour que les événements gardent leur heure locale
+// (pas d'UTC) quel que soit le calendrier qui les lit.
+const VTIMEZONE_LINES = [
+  'BEGIN:VTIMEZONE',
+  `TZID:${BRUSSELS_TZID}`,
+  'BEGIN:DAYLIGHT',
+  'TZOFFSETFROM:+0100',
+  'TZOFFSETTO:+0200',
+  'TZNAME:CEST',
+  'DTSTART:19700329T020000',
+  'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+  'END:DAYLIGHT',
+  'BEGIN:STANDARD',
+  'TZOFFSETFROM:+0200',
+  'TZOFFSETTO:+0100',
+  'TZNAME:CET',
+  'DTSTART:19701025T030000',
+  'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+  'END:STANDARD',
+  'END:VTIMEZONE',
+];
 
 // « 2026-09-14 » (lundi de la semaine 1) + semaine + jour (0 = lundi) -> date calendaire.
 function occurrenceDate(firstMonday, week, day) {
@@ -15,22 +37,16 @@ function occurrenceDate(firstMonday, week, day) {
   return { year: base.getUTCFullYear(), month: base.getUTCMonth() + 1, day: base.getUTCDate() };
 }
 
-// Décalage de Bruxelles (en heures) au voisinage d'un instant donné, sans coder les règles CET/CEST à la main.
-function brusselsOffsetHours(date) {
-  const zoneName = OFFSET_FORMATTER.formatToParts(date).find((part) => part.type === 'timeZoneName')?.value ?? 'GMT+1';
-  return Number(zoneName.replace('GMT', '')) || 1;
-}
-
-// Heure locale de Bruxelles -> instant UTC. Les cours ont lieu entre 8h et 21h, loin de la bascule
-// horaire (autour de 1h-3h du matin) : l'approximation en deux temps (décalage provisoire puis définitif) suffit.
-function brusselsLocalToUtc(year, month, day, hour, minute) {
-  const provisional = new Date(Date.UTC(year, month - 1, day, hour, minute));
-  return new Date(provisional.getTime() - brusselsOffsetHours(provisional) * 3600_000);
-}
-
-// Date UTC -> « AAAAMMJJTHHMMSSZ », le format DATE-TIME de l'ICS.
+// Date UTC -> « AAAAMMJJTHHMMSSZ », le format DATE-TIME UTC de l'ICS (seul DTSTAMP en a besoin).
 function formatIcsUtc(date) {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+// Heure locale de Bruxelles -> « AAAAMMJJTHHMMSS », le format DATE-TIME local de l'ICS. Le décalage
+// CET/CEST n'est pas calculé ici : c'est le rôle du VTIMEZONE référencé par TZID.
+function formatIcsLocal(year, month, day, hour, minute) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${year}${pad(month)}${pad(day)}T${pad(hour)}${pad(minute)}00`;
 }
 
 // Échappe les caractères spéciaux d'un champ TEXT (RFC 5545 §3.3.11).
@@ -87,8 +103,8 @@ function buildEvent(lesson, occurrence, firstMonday, now) {
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${formatIcsUtc(now)}`,
-    `DTSTART:${formatIcsUtc(brusselsLocalToUtc(year, month, date, startHour, startMinute))}`,
-    `DTEND:${formatIcsUtc(brusselsLocalToUtc(year, month, date, endHour, endMinute))}`,
+    `DTSTART;TZID=${BRUSSELS_TZID}:${formatIcsLocal(year, month, date, startHour, startMinute)}`,
+    `DTEND;TZID=${BRUSSELS_TZID}:${formatIcsLocal(year, month, date, endHour, endMinute)}`,
     `SUMMARY:${escapeText(lesson.subject)}`,
   ];
   if (lesson.teachers.length > 0) lines.push(`DESCRIPTION:${escapeText(formatTeachers(lesson.teachers))}`);
@@ -99,7 +115,14 @@ function buildEvent(lesson, occurrence, firstMonday, now) {
 // `lessons` : sortie de buildDetailedLessons (server/lessons.mjs), déjà filtrée sur la sélection de l'élève.
 // `firstMonday` : lundi de la semaine 1 (« AAAA-MM-JJ »), commun à toutes les promotions d'une même session.
 export function buildIcs(lessons, firstMonday, now = new Date()) {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//HyperICS//FR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:HyperICS'];
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//HyperICS//FR',
+    'CALSCALE:GREGORIAN',
+    'X-WR-CALNAME:HyperICS',
+    ...VTIMEZONE_LINES,
+  ];
   for (const lesson of lessons) {
     for (const occurrence of [...lesson.occurrences].sort(compareOccurrences)) {
       lines.push(...buildEvent(lesson, occurrence, firstMonday, now));

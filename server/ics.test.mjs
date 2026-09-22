@@ -15,30 +15,38 @@ function eventLines(ics) {
   return body.slice(start, end + 1);
 }
 
-test('encadre le flux et place un VEVENT par occurrence', () => {
+test('encadre le flux, déclare le fuseau Europe/Brussels et place un VEVENT par occurrence', () => {
   const ics = buildIcs(
     [lesson({ occurrences: ['1|0|08:00|09:30', '1|3|08:00|09:30'] })],
     FIRST_MONDAY,
     NOW,
   );
   assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'));
+  assert.ok(ics.includes('BEGIN:VTIMEZONE\r\nTZID:Europe/Brussels\r\n'));
   assert.ok(ics.endsWith('END:VCALENDAR\r\n'));
   assert.equal(ics.split('BEGIN:VEVENT').length - 1, 2);
 });
 
-test('un cours en septembre (heure d’été) : 08:00 Bruxelles = 06:00 UTC', () => {
+test('un cours garde son heure locale de Bruxelles, jamais convertie en UTC', () => {
   const ics = buildIcs([lesson({ occurrences: ['1|0|08:00|09:30'] })], FIRST_MONDAY, NOW);
   const lines = eventLines(ics);
-  assert.ok(lines.includes('DTSTART:20260914T060000Z'));
-  assert.ok(lines.includes('DTEND:20260914T073000Z'));
+  assert.ok(lines.includes('DTSTART;TZID=Europe/Brussels:20260914T080000'));
+  assert.ok(lines.includes('DTEND;TZID=Europe/Brussels:20260914T093000'));
+  assert.ok(!lines.some((line) => line.startsWith('DTSTART:') || line.startsWith('DTEND:')));
 });
 
-test('un cours fin décembre (heure d’hiver) : 10:00 Bruxelles = 09:00 UTC', () => {
+test('un cours fin décembre garde aussi son heure locale, été comme hiver', () => {
   // Semaine 16, mercredi (jour 2) : 14/09/2026 + 15 semaines + 2 jours = 30/12/2026.
   const ics = buildIcs([lesson({ occurrences: ['16|2|10:00|12:00'] })], FIRST_MONDAY, NOW);
   const lines = eventLines(ics);
-  assert.ok(lines.includes('DTSTART:20261230T090000Z'));
-  assert.ok(lines.includes('DTEND:20261230T110000Z'));
+  assert.ok(lines.includes('DTSTART;TZID=Europe/Brussels:20261230T100000'));
+  assert.ok(lines.includes('DTEND;TZID=Europe/Brussels:20261230T120000'));
+});
+
+test('DTSTAMP reste en UTC : seule l’heure du cours doit être locale', () => {
+  const ics = buildIcs([lesson({ occurrences: ['1|0|08:00|09:30'] })], FIRST_MONDAY, NOW);
+  const lines = eventLines(ics);
+  assert.ok(lines.includes('DTSTAMP:20260901T000000Z'));
 });
 
 test('affiche la matière, pas le code, et les profs formatés comme sur le front', () => {
