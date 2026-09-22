@@ -109,6 +109,9 @@ function buildEvent(lesson, occurrence, firstMonday, now, showPromotion) {
   // Stable d'une requête à l'autre : le calendrier de l'élève se met à jour sans dupliquer l'événement.
   const uid = `${createHash('sha1').update(`${lesson.id}|${occurrence}`).digest('hex')}@hyperics.app`;
   const rooms = lesson.roomsByOccurrence?.[occurrence] ?? [];
+  // Le prof peut changer d'une occurrence à l'autre (ex. Lemal le lundi, Jamoulle le vendredi) : on lit
+  // celui de cette occurrence précise, jamais la liste à plat de tous les profs du cours.
+  const teachers = lesson.teachersByOccurrence?.[occurrence] ?? [];
 
   const lines = [
     'BEGIN:VEVENT',
@@ -119,7 +122,7 @@ function buildEvent(lesson, occurrence, firstMonday, now, showPromotion) {
     `SUMMARY:${escapeText(summaryOf(lesson, showPromotion))}`,
   ];
   const location = [...rooms];
-  if (lesson.teachers.length > 0) location.push(formatTeachers(lesson.teachers));
+  if (teachers.length > 0) location.push(formatTeachers(teachers));
   if (location.length > 0) lines.push(`LOCATION:${escapeText(location.join(', '))}`);
   lines.push('END:VEVENT');
   return lines;

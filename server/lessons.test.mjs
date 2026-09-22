@@ -232,6 +232,32 @@ test('roomsByWeek distingue la salle de chaque occurrence, sans les assembler', 
   });
 });
 
+// --- Profs : celui de chaque occurrence, jamais assemblés entre eux (un cours peut changer de prof selon le jour).
+
+test('deux créneaux du même cours à des jours différents gardent chacun son prof', () => {
+  const [lesson] = buildDetailedLessons([
+    record('3TI Web', [
+      slot({ subject: 'Anglais Q5', teachers: ['Lemal'], day: 0, weeks: [2, 3] }), // lundi
+      slot({ subject: 'Anglais Q5', teachers: ['Jamoulle'], day: 4, weeks: [2, 3] }), // vendredi
+    ]),
+  ]);
+  assert.deepEqual(lesson.teachersByOccurrence, {
+    '2|0|09:00|11:00': ['Lemal'],
+    '3|0|09:00|11:00': ['Lemal'],
+    '2|4|09:00|11:00': ['Jamoulle'],
+    '3|4|09:00|11:00': ['Jamoulle'],
+  });
+  // Le résumé à plat (écrans de sélection) garde, lui, tous les profs du cours, sans distinction de date.
+  assert.deepEqual(lesson.teachers, ['Lemal', 'Jamoulle']);
+});
+
+test('deux profs au même moment restent ensemble sur cette occurrence', () => {
+  const [lesson] = buildDetailedLessons([
+    record('3TI Web', [slot({ subject: 'Atelier', teachers: ['Pirson', 'Parotte'], weeks: [1] })]),
+  ]);
+  assert.deepEqual(lesson.teachersByOccurrence, { '1|0|09:00|11:00': ['Pirson', 'Parotte'] });
+});
+
 test('parsePromotions découpe, nettoie et dédoublonne', () => {
   const parse = (query) => parsePromotions(new URLSearchParams(query));
   assert.deepEqual(parse('promotions=3TI Web,2TE'), ['3TI Web', '2TE']);

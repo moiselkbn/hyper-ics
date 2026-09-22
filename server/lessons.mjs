@@ -30,13 +30,24 @@ export function validatePromotionLabels(labels) {
 // `occurrences` liste les moments où il a lieu : « semaine|jour|début|fin ».
 // `roomsByOccurrence` associe à chaque occurrence ses salles (une occurrence peut en avoir plusieurs,
 // ou aucune) : la salle n'entre pas dans la clé d'occurrence, qui ne sert qu'à repérer un même moment.
+// `teachersByOccurrence` fait de même pour les profs : un cours peut avoir un prof différent selon le
+// jour (ex. Lemal le lundi, Jamoulle le vendredi) ; `teachers` (à plat, tous profs confondus) reste
+// utile pour le résumé affiché avant le choix d'une date précise (écrans de sélection des cours).
 function coursesOfPromotion(record) {
   const courses = new Map();
   for (const slot of record.courses) {
     if (!slot.key) continue; // sans matière : impossible à identifier, donc à filtrer
     let course = courses.get(slot.key);
     if (!course) {
-      course = { key: slot.key, subject: slot.subject.trim(), code: null, teachers: [], occurrences: new Set(), roomsByOccurrence: new Map() };
+      course = {
+        key: slot.key,
+        subject: slot.subject.trim(),
+        code: null,
+        teachers: [],
+        occurrences: new Set(),
+        roomsByOccurrence: new Map(),
+        teachersByOccurrence: new Map(),
+      };
       courses.set(slot.key, course);
     }
     course.code ??= slot.code?.trim() || null;
@@ -49,13 +60,22 @@ function coursesOfPromotion(record) {
       // `roomsByWeek` : salle résolue semaine par semaine quand elle change en cours d'année
       // (scraper/resolve-rooms.mjs). Sans lui, la même salle s'applique à toutes les semaines du créneau.
       const weekRooms = slot.roomsByWeek ? (slot.roomsByWeek[week] ?? []) : slot.rooms;
-      if (weekRooms.length === 0) continue;
-      let rooms = course.roomsByOccurrence.get(occurrence);
-      if (!rooms) {
-        rooms = new Set();
-        course.roomsByOccurrence.set(occurrence, rooms);
+      if (weekRooms.length > 0) {
+        let rooms = course.roomsByOccurrence.get(occurrence);
+        if (!rooms) {
+          rooms = new Set();
+          course.roomsByOccurrence.set(occurrence, rooms);
+        }
+        for (const room of weekRooms) rooms.add(room);
       }
-      for (const room of weekRooms) rooms.add(room);
+      if (slot.teachers.length > 0) {
+        let teachers = course.teachersByOccurrence.get(occurrence);
+        if (!teachers) {
+          teachers = new Set();
+          course.teachersByOccurrence.set(occurrence, teachers);
+        }
+        for (const teacher of slot.teachers) teachers.add(teacher);
+      }
     }
   }
   return [...courses.values()];
@@ -72,6 +92,7 @@ const newLesson = (id, course, promotion) => ({
   promotions: [promotion],
   occurrences: new Set(course.occurrences),
   roomsByOccurrence: new Map([...course.roomsByOccurrence].map(([occurrence, rooms]) => [occurrence, new Set(rooms)])),
+  teachersByOccurrence: new Map([...course.teachersByOccurrence].map(([occurrence, teachers]) => [occurrence, new Set(teachers)])),
 });
 
 // Fond `source` dans `target` ; l'identifiant retenu est le plus petit, pour ne pas dépendre de l'ordre des promotions.
@@ -94,6 +115,14 @@ function absorb(target, source) {
       target.roomsByOccurrence.set(occurrence, targetRooms);
     }
     for (const room of rooms) targetRooms.add(room);
+  }
+  for (const [occurrence, teachers] of source.teachersByOccurrence) {
+    let targetTeachers = target.teachersByOccurrence.get(occurrence);
+    if (!targetTeachers) {
+      targetTeachers = new Set();
+      target.teachersByOccurrence.set(occurrence, targetTeachers);
+    }
+    for (const teacher of teachers) targetTeachers.add(teacher);
   }
 }
 
@@ -160,14 +189,17 @@ export function buildLessons(records) {
   };
 }
 
-// Comme buildLessons, mais garde les occurrences (« semaine|jour|début|fin ») et leurs salles, que l'API
-// publique n'expose pas : c'est ce dont le flux ICS a besoin pour placer les événements dans le temps et
-// renseigner leur lieu.
+// Comme buildLessons, mais garde les occurrences (« semaine|jour|début|fin ») et leurs salles/profs, que
+// l'API publique n'expose pas : c'est ce dont le flux ICS a besoin pour placer les événements dans le
+// temps et renseigner leur lieu et leur(s) prof(s) exacts, occurrence par occurrence.
 export function buildDetailedLessons(records) {
   return mergeLessonsFromRecords(records).map((lesson) => ({
     ...lesson,
     occurrences: [...lesson.occurrences],
     roomsByOccurrence: Object.fromEntries([...lesson.roomsByOccurrence].map(([occurrence, rooms]) => [occurrence, [...rooms]])),
+    teachersByOccurrence: Object.fromEntries(
+      [...lesson.teachersByOccurrence].map(([occurrence, teachers]) => [occurrence, [...teachers]]),
+    ),
   }));
 }
 

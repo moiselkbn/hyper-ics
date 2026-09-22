@@ -9,10 +9,10 @@ const FIRST_MONDAY = '2026-09-14'; // lundi de la semaine 1
 const lesson = (overrides) => ({
   id: 'x',
   subject: 'Anglais 1',
-  teachers: ['Marchi'],
   promotions: ['3TI Web'],
   occurrences: [],
   roomsByOccurrence: {},
+  teachersByOccurrence: {},
   ...overrides,
 });
 
@@ -60,7 +60,13 @@ test('DTSTAMP reste en UTC : seule l’heure du cours doit être locale', () => 
 
 test('affiche la matière, pas le code, et les profs formatés comme sur le front', () => {
   const ics = buildIcs(
-    [lesson({ subject: 'Anglais 1', teachers: ['Marchi', 'Dupont'], occurrences: ['1|0|08:00|09:30'] })],
+    [
+      lesson({
+        subject: 'Anglais 1',
+        occurrences: ['1|0|08:00|09:30'],
+        teachersByOccurrence: { '1|0|08:00|09:30': ['Marchi', 'Dupont'] },
+      }),
+    ],
     FIRST_MONDAY,
     ['3TI Web'],
     NOW,
@@ -71,12 +77,7 @@ test('affiche la matière, pas le code, et les profs formatés comme sur le fron
 });
 
 test('un cours sans prof ni salle n’a pas de LOCATION', () => {
-  const ics = buildIcs(
-    [lesson({ teachers: [], roomsByOccurrence: {}, occurrences: ['1|0|08:00|09:30'] })],
-    FIRST_MONDAY,
-    ['3TI Web'],
-    NOW,
-  );
+  const ics = buildIcs([lesson({ occurrences: ['1|0|08:00|09:30'] })], FIRST_MONDAY, ['3TI Web'], NOW);
   assert.ok(!ics.includes('LOCATION'));
 });
 
@@ -85,9 +86,9 @@ test('un cours avec salle et prof affiche les deux dans LOCATION, salle d’abor
     [
       lesson({
         id: 'a',
-        teachers: ['Lemal'],
         occurrences: ['1|0|08:00|09:30'],
         roomsByOccurrence: { '1|0|08:00|09:30': ['L315'] },
+        teachersByOccurrence: { '1|0|08:00|09:30': ['Lemal'] },
       }),
     ],
     FIRST_MONDAY,
@@ -99,7 +100,7 @@ test('un cours avec salle et prof affiche les deux dans LOCATION, salle d’abor
 
 test('un cours sans salle mais avec prof affiche quand même le prof dans LOCATION', () => {
   const ics = buildIcs(
-    [lesson({ teachers: ['Lemal'], roomsByOccurrence: {}, occurrences: ['1|0|08:00|09:30'] })],
+    [lesson({ occurrences: ['1|0|08:00|09:30'], teachersByOccurrence: { '1|0|08:00|09:30': ['Lemal'] } })],
     FIRST_MONDAY,
     ['3TI Web'],
     NOW,
@@ -109,13 +110,7 @@ test('un cours sans salle mais avec prof affiche quand même le prof dans LOCATI
 
 test('un cours avec salle mais sans prof affiche quand même la salle dans LOCATION', () => {
   const ics = buildIcs(
-    [
-      lesson({
-        teachers: [],
-        occurrences: ['1|0|08:00|09:30'],
-        roomsByOccurrence: { '1|0|08:00|09:30': ['L315'] },
-      }),
-    ],
+    [lesson({ occurrences: ['1|0|08:00|09:30'], roomsByOccurrence: { '1|0|08:00|09:30': ['L315'] } })],
     FIRST_MONDAY,
     ['3TI Web'],
     NOW,
@@ -127,9 +122,9 @@ test('plusieurs salles pour une même occurrence sont listées avant le prof', (
   const ics = buildIcs(
     [
       lesson({
-        teachers: ['Lemal'],
         occurrences: ['1|0|08:00|09:30'],
         roomsByOccurrence: { '1|0|08:00|09:30': ['L520', 'L521'] },
+        teachersByOccurrence: { '1|0|08:00|09:30': ['Lemal'] },
       }),
     ],
     FIRST_MONDAY,
@@ -137,6 +132,22 @@ test('plusieurs salles pour une même occurrence sont listées avant le prof', (
     NOW,
   );
   assert.ok(ics.includes('LOCATION:L520\\, L521\\, Lemal'));
+});
+
+test('deux occurrences du même cours avec des profs différents affichent chacune le sien', () => {
+  const ics = buildIcs(
+    [
+      lesson({
+        occurrences: ['1|0|08:00|09:30', '1|4|08:00|09:30'], // lundi puis vendredi
+        teachersByOccurrence: { '1|0|08:00|09:30': ['Lemal'], '1|4|08:00|09:30': ['Jamoulle'] },
+      }),
+    ],
+    FIRST_MONDAY,
+    ['3TI Web'],
+    NOW,
+  );
+  const locations = [...ics.matchAll(/^LOCATION:(.+)$/gm)].map((match) => match[1]);
+  assert.deepEqual(locations, ['Lemal', 'Jamoulle']);
 });
 
 test('une seule promotion suivie : le SUMMARY ne précise pas la promotion', () => {
