@@ -11,9 +11,10 @@ export type Lesson = {
   promotions: string[];
 };
 
-// Un prof est toujours affiché ; s'il y en a d'autres, on ajoute leur nombre (« Lemal +2 »).
+// Un ou deux profs : la liste complète (« Dupont, Sarouille »). Au-delà, le premier suivi du nombre
+// des autres (« Dupont +2 »), sinon la liste devient trop longue à afficher.
 export function formatTeachers(teachers: string[]): string {
-  if (teachers.length <= 1) return teachers[0] ?? '';
+  if (teachers.length <= 2) return teachers.join(', ');
   return `${teachers[0]} +${teachers.length - 1}`;
 }
 

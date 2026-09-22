@@ -77,13 +77,14 @@ function foldLine(line) {
   return lines.join('\r\n ');
 }
 
-// Un prof est toujours affiché ; s'il y en a d'autres, on ajoute leur nombre (« Lemal +2 »).
+// Un ou deux profs : la liste complète (« Dupont, Sarouille »). Au-delà, le premier suivi du nombre
+// des autres (« Dupont +2 »), sinon la liste devient trop longue à afficher.
 // Même règle que formatTeachers côté front (src/data/lessons.ts), dupliquée ici : trop courte
 // pour valoir un module partagé entre un fichier TS et un fichier .mjs.
 // Dans LOCATION (pas DESCRIPTION) : Apple Calendar n'affiche les notes qu'une fois l'événement
 // ouvert en détail, alors que le lieu apparaît directement dans l'aperçu et la grille du calendrier.
 function formatTeachers(teachers) {
-  if (teachers.length <= 1) return teachers[0] ?? '';
+  if (teachers.length <= 2) return teachers.join(', ');
   return `${teachers[0]} +${teachers.length - 1}`;
 }
 

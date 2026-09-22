@@ -58,7 +58,7 @@ test('DTSTAMP reste en UTC : seule l’heure du cours doit être locale', () => 
   assert.ok(lines.includes('DTSTAMP:20260901T000000Z'));
 });
 
-test('affiche la matière, pas le code, et les profs formatés comme sur le front', () => {
+test('affiche la matière, pas le code, et deux profs listés en entier', () => {
   const ics = buildIcs(
     [
       lesson({
@@ -73,7 +73,24 @@ test('affiche la matière, pas le code, et les profs formatés comme sur le fron
   );
   const lines = eventLines(ics);
   assert.ok(lines.includes('SUMMARY:Anglais 1'));
-  assert.ok(lines.includes('LOCATION:Marchi +1'));
+  assert.ok(lines.includes('LOCATION:Marchi\\, Dupont'));
+});
+
+test('au-delà de deux profs, le premier est suivi du nombre des autres', () => {
+  const ics = buildIcs(
+    [
+      lesson({
+        subject: 'Anglais 1',
+        occurrences: ['1|0|08:00|09:30'],
+        teachersByOccurrence: { '1|0|08:00|09:30': ['Marchi', 'Dupont', 'Sarouille'] },
+      }),
+    ],
+    FIRST_MONDAY,
+    ['3TI Web'],
+    NOW,
+  );
+  const lines = eventLines(ics);
+  assert.ok(lines.includes('LOCATION:Marchi +2'));
 });
 
 test('un cours sans prof ni salle n’a pas de LOCATION', () => {
