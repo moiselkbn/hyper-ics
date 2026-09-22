@@ -65,6 +65,32 @@ test('un cours sans prof n’a pas de DESCRIPTION', () => {
   assert.ok(!ics.includes('DESCRIPTION'));
 });
 
+test('un cours avec salle a une LOCATION, un cours sans salle n’en a pas', () => {
+  const ics = buildIcs(
+    [
+      lesson({
+        id: 'a',
+        occurrences: ['1|0|08:00|09:30'],
+        roomsByOccurrence: { '1|0|08:00|09:30': ['L520'] },
+      }),
+      lesson({ id: 'b', occurrences: ['1|1|08:00|09:30'], roomsByOccurrence: {} }),
+    ],
+    FIRST_MONDAY,
+    NOW,
+  );
+  assert.ok(ics.includes('LOCATION:L520'));
+  assert.equal(ics.split('LOCATION:').length - 1, 1);
+});
+
+test('plusieurs salles pour une même occurrence sont listées ensemble', () => {
+  const ics = buildIcs(
+    [lesson({ occurrences: ['1|0|08:00|09:30'], roomsByOccurrence: { '1|0|08:00|09:30': ['L520', 'L521'] } })],
+    FIRST_MONDAY,
+    NOW,
+  );
+  assert.ok(ics.includes('LOCATION:L520\\, L521'));
+});
+
 test('échappe la virgule et le point-virgule dans un champ texte', () => {
   const ics = buildIcs(
     [lesson({ subject: 'Réunion, rentrée; infos', occurrences: ['1|0|08:00|09:30'] })],

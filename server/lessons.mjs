@@ -28,20 +28,32 @@ export function validatePromotionLabels(labels) {
 // Dans une promotion, un cours = sa matière (la clé de cours, voir shared/course-key.mjs), quel que soit
 // le nombre d'occurrences par semaine. On garde le premier code rencontré, sans espaces autour.
 // `occurrences` liste les moments où il a lieu : « semaine|jour|début|fin ».
+// `roomsByOccurrence` associe à chaque occurrence ses salles (une occurrence peut en avoir plusieurs,
+// ou aucune) : la salle n'entre pas dans la clé d'occurrence, qui ne sert qu'à repérer un même moment.
 function coursesOfPromotion(record) {
   const courses = new Map();
   for (const slot of record.courses) {
     if (!slot.key) continue; // sans matière : impossible à identifier, donc à filtrer
     let course = courses.get(slot.key);
     if (!course) {
-      course = { key: slot.key, subject: slot.subject.trim(), code: null, teachers: [], occurrences: new Set() };
+      course = { key: slot.key, subject: slot.subject.trim(), code: null, teachers: [], occurrences: new Set(), roomsByOccurrence: new Map() };
       courses.set(slot.key, course);
     }
     course.code ??= slot.code?.trim() || null;
     for (const teacher of slot.teachers) {
       if (!course.teachers.includes(teacher)) course.teachers.push(teacher);
     }
-    for (const week of slot.weeks) course.occurrences.add(`${week}|${slot.day}|${slot.start}|${slot.end}`);
+    for (const week of slot.weeks) {
+      const occurrence = `${week}|${slot.day}|${slot.start}|${slot.end}`;
+      course.occurrences.add(occurrence);
+      if (slot.rooms.length === 0) continue;
+      let rooms = course.roomsByOccurrence.get(occurrence);
+      if (!rooms) {
+        rooms = new Set();
+        course.roomsByOccurrence.set(occurrence, rooms);
+      }
+      for (const room of slot.rooms) rooms.add(room);
+    }
   }
   return [...courses.values()];
 }
@@ -56,6 +68,7 @@ const newLesson = (id, course, promotion) => ({
   mandatory: course.code === null,
   promotions: [promotion],
   occurrences: new Set(course.occurrences),
+  roomsByOccurrence: new Map([...course.roomsByOccurrence].map(([occurrence, rooms]) => [occurrence, new Set(rooms)])),
 });
 
 // Fond `source` dans `target` ; l'identifiant retenu est le plus petit, pour ne pas dépendre de l'ordre des promotions.
@@ -71,6 +84,14 @@ function absorb(target, source) {
     if (!target.teachers.includes(teacher)) target.teachers.push(teacher);
   }
   for (const occurrence of source.occurrences) target.occurrences.add(occurrence);
+  for (const [occurrence, rooms] of source.roomsByOccurrence) {
+    let targetRooms = target.roomsByOccurrence.get(occurrence);
+    if (!targetRooms) {
+      targetRooms = new Set();
+      target.roomsByOccurrence.set(occurrence, targetRooms);
+    }
+    for (const room of rooms) targetRooms.add(room);
+  }
 }
 
 const shareOccurrence = (a, b) => [...a].some((occurrence) => b.has(occurrence));
@@ -136,10 +157,15 @@ export function buildLessons(records) {
   };
 }
 
-// Comme buildLessons, mais garde les occurrences (« semaine|jour|début|fin ») que l'API publique
-// n'expose pas : c'est ce dont le flux ICS a besoin pour placer les événements dans le temps.
+// Comme buildLessons, mais garde les occurrences (« semaine|jour|début|fin ») et leurs salles, que l'API
+// publique n'expose pas : c'est ce dont le flux ICS a besoin pour placer les événements dans le temps et
+// renseigner leur lieu.
 export function buildDetailedLessons(records) {
-  return mergeLessonsFromRecords(records).map((lesson) => ({ ...lesson, occurrences: [...lesson.occurrences] }));
+  return mergeLessonsFromRecords(records).map((lesson) => ({
+    ...lesson,
+    occurrences: [...lesson.occurrences],
+    roomsByOccurrence: Object.fromEntries([...lesson.roomsByOccurrence].map(([occurrence, rooms]) => [occurrence, [...rooms]])),
+  }));
 }
 
 export async function getLessons(redis, url) {
