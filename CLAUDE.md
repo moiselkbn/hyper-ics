@@ -39,8 +39,8 @@ HyperICS — webapp SaaS open-source qui lie Hyperplanning au calendrier personn
 - Pas d'accord officiel de l'HEFF pour le scrap : bêta restreinte, requêtes espacées, transparence envers les élèves sur ce qui est stocké.
 
 ## Avancement (2026-09-22)
-- Fait : scrap vers Redis déclenché toutes les 15 min (QStash + cron GitHub), résolution de la salle exacte par semaine, API de lecture déployée sur Vercel, front branché sur l'API de bout en bout (classes, cours, récapitulatif, génération), jeton et flux ICS réels (`/api/feed`, dédoublonnage, fuseau Europe/Brussels, précision de promotion en cas de chevauchement), bouton d'installation sur l'écran d'accueil (PWA).
-- Reste avant la bêta : sélection modifiable après coup (revenir sur un flux existant à partir de son URL — le bouton « Sauvegarder le lien » n'est pas encore branché), page de suppression des données, motif de reconnaissance pour le cursus « Accessoires de mode » (aucun libellé identifié pour l'instant).
+- Fait : scrap vers Redis déclenché toutes les 15 min (QStash + cron GitHub), résolution de la salle exacte par semaine, API de lecture déployée sur Vercel, front branché sur l'API de bout en bout (classes, cours, récapitulatif, génération), jeton et flux ICS réels (`/api/feed`, dédoublonnage, fuseau Europe/Brussels, précision de promotion en cas de chevauchement), bouton d'installation sur l'écran d'accueil (PWA), dernier écran remanié pour mettre en avant la conservation du lien (encart dédié, bouton « Partager le lien » branché sur l'API Web Share avec repli sur la copie).
+- Reste avant la bêta : sélection modifiable après coup (revenir sur un flux existant à partir de son URL pour changer la sélection — pas encore possible), page de suppression des données, motif de reconnaissance pour le cursus « Accessoires de mode » (aucun libellé identifié pour l'instant).
 
 ## Design
 - Maquettes Figma : https://www.figma.com/design/WGIxtDqbfaS3B9ttpztTA7/HyperICS?node-id=30-17

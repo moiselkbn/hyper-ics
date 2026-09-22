@@ -43,19 +43,33 @@
   gap: 10px;
 }
 
-/* --- Lien du flux --- */
+/* --- Garder la page (lien + partage + écran d'accueil) --- */
 
-.feed-ready__hint {
+.feed-ready__keep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--space-2);
+  background: var(--transparent-white-20);
+}
+
+.feed-ready__keep-title {
+  margin: 0;
+  color: var(--primary-yellow);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.feed-ready__keep-text {
   margin: 0;
   font-size: 14px;
 }
 
-.feed-ready__link {
+.feed-ready__keep-actions {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  align-self: center;
-  width: 251px;
 }
 
 .feed-ready__link-field {
@@ -120,12 +134,9 @@
 }
 
 .feed-ready__status {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  min-height: 1em;
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 12px;
+  text-align: center;
 }

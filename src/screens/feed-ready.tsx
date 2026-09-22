@@ -22,13 +22,31 @@ type FeedReadyProps = {
 // Dernier écran : le flux est prêt, l'élève l'ajoute à son calendrier.
 export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
   const [platform, setPlatform] = useState<string>(PLATFORMS[0].id);
-  const [isCopied, setIsCopied] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   const current = PLATFORMS.find((entry) => entry.id === platform) ?? PLATFORMS[0];
   const bareFeedUrl = feedUrl.replace(/^[a-z]+:\/\//i, '');
 
   async function copyFeedUrl() {
-    await navigator.clipboard.writeText(feedUrl);
-    setIsCopied(true);
+    try {
+      await navigator.clipboard.writeText(feedUrl);
+      setStatusMessage('Lien copié.');
+    } catch {
+      setStatusMessage('Impossible de copier, sélectionne le lien à la main.');
+    }
+  }
+
+  // Sur mobile, ouvre la feuille de partage native (Messages, Notes, Fichiers…) ;
+  // sans support (la plupart des navigateurs desktop), on retombe sur la copie.
+  async function shareFeedUrl() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ url: feedUrl, title: 'Mon flux HyperICS' });
+      } catch {
+        // Annulé par l'élève : rien à faire.
+      }
+      return;
+    }
+    await copyFeedUrl();
   }
 
   function addToCalendar() {
@@ -74,26 +92,32 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
         <img className="feed-ready__add-icon" src={arrowUpRightUrl} alt="" width={13} height={13} />
       </Button>
 
-      <p className="feed-ready__hint">
-        Voici le lien de cette page, il est unique et fait pour toi, sauvegarde le lien pour ne jamais le perdre
-      </p>
+      <div className="feed-ready__keep">
+        <p className="feed-ready__keep-title">Ne perds pas cette page</p>
+        <p className="feed-ready__keep-text">
+          Pas de compte chez HyperICS : ce lien unique est ta seule façon de revenir ici pour changer tes cours plus
+          tard. Si tu le perds, il faudra tout recommencer.
+        </p>
 
-      <div className="feed-ready__link">
         <div className="feed-ready__link-field">
           <span className="feed-ready__link-url">{feedUrl}</span>
           <button className="feed-ready__copy" type="button" onClick={copyFeedUrl} aria-label="Copier le lien">
             <span className="feed-ready__copy-icon" aria-hidden="true" />
           </button>
         </div>
-        {/* La sauvegarde du lien sera branchée ici. */}
-        <Button>Sauvegarder le lien</Button>
+
+        <p
+          className={statusMessage ? 'feed-ready__status feed-ready__status--visible' : 'feed-ready__status'}
+          role="status"
+        >
+          {statusMessage}
+        </p>
+
+        <div className="feed-ready__keep-actions">
+          <Button onClick={shareFeedUrl}>Partager le lien</Button>
+          <AddToHomeScreen />
+        </div>
       </div>
-
-      <p className="feed-ready__status" role="status">
-        {isCopied ? 'Lien copié.' : ''}
-      </p>
-
-      <AddToHomeScreen />
     </div>
   );
 }
