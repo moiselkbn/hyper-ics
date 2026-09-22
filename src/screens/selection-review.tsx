@@ -2,7 +2,7 @@ import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
 import { Stepper } from '../components/stepper';
 import { StepTitle } from '../components/step-title';
-import { formatTeachers, type Lesson } from '../data/lessons';
+import { formatTeachers, getSelectableLessons, type Lesson } from '../data/lessons';
 import './selection-review.css';
 
 type SelectionReviewProps = {
@@ -15,7 +15,8 @@ type SelectionReviewProps = {
 
 // Étape 3 : récapitulatif des cours retenus avant de générer le calendrier.
 export function SelectionReview({ promotions, lessons, selected, onBack, onNext }: SelectionReviewProps) {
-  const selectedLessons = lessons.filter((lesson) => selected.has(lesson.id));
+  // Les cours obligatoires restent dans le calendrier mais ne sont pas listés : l'élève ne les a pas choisis.
+  const selectedLessons = getSelectableLessons(lessons).filter((lesson) => selected.has(lesson.id));
 
   return (
     <div className="selection-review">
@@ -43,7 +44,7 @@ export function SelectionReview({ promotions, lessons, selected, onBack, onNext 
         </ul>
       </section>
       <div className="selection-review__footer">
-        <Button variant="accent" disabled={selectedLessons.length === 0} onClick={onNext}>
+        <Button variant="accent" disabled={selected.size === 0} onClick={onNext}>
           Générer le calendrier
         </Button>
       </div>
