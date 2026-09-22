@@ -67,40 +67,76 @@ test('affiche la matière, pas le code, et les profs formatés comme sur le fron
   );
   const lines = eventLines(ics);
   assert.ok(lines.includes('SUMMARY:Anglais 1'));
-  assert.ok(lines.includes('DESCRIPTION:Marchi +1'));
+  assert.ok(lines.includes('LOCATION:Marchi +1'));
 });
 
-test('un cours sans prof n’a pas de DESCRIPTION', () => {
-  const ics = buildIcs([lesson({ teachers: [], occurrences: ['1|0|08:00|09:30'] })], FIRST_MONDAY, ['3TI Web'], NOW);
-  assert.ok(!ics.includes('DESCRIPTION'));
+test('un cours sans prof ni salle n’a pas de LOCATION', () => {
+  const ics = buildIcs(
+    [lesson({ teachers: [], roomsByOccurrence: {}, occurrences: ['1|0|08:00|09:30'] })],
+    FIRST_MONDAY,
+    ['3TI Web'],
+    NOW,
+  );
+  assert.ok(!ics.includes('LOCATION'));
 });
 
-test('un cours avec salle a une LOCATION, un cours sans salle n’en a pas', () => {
+test('un cours avec salle et prof affiche les deux dans LOCATION, salle d’abord', () => {
   const ics = buildIcs(
     [
       lesson({
         id: 'a',
+        teachers: ['Lemal'],
         occurrences: ['1|0|08:00|09:30'],
-        roomsByOccurrence: { '1|0|08:00|09:30': ['L520'] },
+        roomsByOccurrence: { '1|0|08:00|09:30': ['L315'] },
       }),
-      lesson({ id: 'b', occurrences: ['1|1|08:00|09:30'], roomsByOccurrence: {} }),
     ],
     FIRST_MONDAY,
     ['3TI Web'],
     NOW,
   );
-  assert.ok(ics.includes('LOCATION:L520'));
-  assert.equal(ics.split('LOCATION:').length - 1, 1);
+  assert.ok(ics.includes('LOCATION:L315\\, Lemal'));
 });
 
-test('plusieurs salles pour une même occurrence sont listées ensemble', () => {
+test('un cours sans salle mais avec prof affiche quand même le prof dans LOCATION', () => {
   const ics = buildIcs(
-    [lesson({ occurrences: ['1|0|08:00|09:30'], roomsByOccurrence: { '1|0|08:00|09:30': ['L520', 'L521'] } })],
+    [lesson({ teachers: ['Lemal'], roomsByOccurrence: {}, occurrences: ['1|0|08:00|09:30'] })],
     FIRST_MONDAY,
     ['3TI Web'],
     NOW,
   );
-  assert.ok(ics.includes('LOCATION:L520\\, L521'));
+  assert.ok(eventLines(ics).includes('LOCATION:Lemal'));
+});
+
+test('un cours avec salle mais sans prof affiche quand même la salle dans LOCATION', () => {
+  const ics = buildIcs(
+    [
+      lesson({
+        teachers: [],
+        occurrences: ['1|0|08:00|09:30'],
+        roomsByOccurrence: { '1|0|08:00|09:30': ['L315'] },
+      }),
+    ],
+    FIRST_MONDAY,
+    ['3TI Web'],
+    NOW,
+  );
+  assert.ok(eventLines(ics).includes('LOCATION:L315'));
+});
+
+test('plusieurs salles pour une même occurrence sont listées avant le prof', () => {
+  const ics = buildIcs(
+    [
+      lesson({
+        teachers: ['Lemal'],
+        occurrences: ['1|0|08:00|09:30'],
+        roomsByOccurrence: { '1|0|08:00|09:30': ['L520', 'L521'] },
+      }),
+    ],
+    FIRST_MONDAY,
+    ['3TI Web'],
+    NOW,
+  );
+  assert.ok(ics.includes('LOCATION:L520\\, L521\\, Lemal'));
 });
 
 test('une seule promotion suivie : le SUMMARY ne précise pas la promotion', () => {

@@ -80,6 +80,8 @@ function foldLine(line) {
 // Un prof est toujours affiché ; s'il y en a d'autres, on ajoute leur nombre (« Lemal +2 »).
 // Même règle que formatTeachers côté front (src/data/lessons.ts), dupliquée ici : trop courte
 // pour valoir un module partagé entre un fichier TS et un fichier .mjs.
+// Dans LOCATION (pas DESCRIPTION) : Apple Calendar n'affiche les notes qu'une fois l'événement
+// ouvert en détail, alors que le lieu apparaît directement dans l'aperçu et la grille du calendrier.
 function formatTeachers(teachers) {
   if (teachers.length <= 1) return teachers[0] ?? '';
   return `${teachers[0]} +${teachers.length - 1}`;
@@ -116,8 +118,9 @@ function buildEvent(lesson, occurrence, firstMonday, now, showPromotion) {
     `DTEND;TZID=${BRUSSELS_TZID}:${formatIcsLocal(year, month, date, endHour, endMinute)}`,
     `SUMMARY:${escapeText(summaryOf(lesson, showPromotion))}`,
   ];
-  if (lesson.teachers.length > 0) lines.push(`DESCRIPTION:${escapeText(formatTeachers(lesson.teachers))}`);
-  if (rooms.length > 0) lines.push(`LOCATION:${escapeText(rooms.join(', '))}`);
+  const location = [...rooms];
+  if (lesson.teachers.length > 0) location.push(formatTeachers(lesson.teachers));
+  if (location.length > 0) lines.push(`LOCATION:${escapeText(location.join(', '))}`);
   lines.push('END:VEVENT');
   return lines;
 }
