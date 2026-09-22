@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import arrowLeftUrl from '../assets/arrow-left.svg';
 import logoUrl from '../assets/logo.svg';
+import { BugReportModal } from './bug-report-modal';
 import './app-header.css';
 
 type AppHeaderProps = {
@@ -7,6 +9,8 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ onBack }: AppHeaderProps) {
+  const [showBugReport, setShowBugReport] = useState(false);
+
   return (
     <header className="app-header">
       {onBack && (
@@ -16,10 +20,10 @@ export function AppHeader({ onBack }: AppHeaderProps) {
         </button>
       )}
       <img className="app-header__logo" src={logoUrl} alt="HyperICS" width={24} height={26} />
-      {/* Ne mène nulle part pour l'instant. */}
-      <button className="app-header__bug" type="button">
+      <button className="app-header__bug" type="button" onClick={() => setShowBugReport(true)}>
         Signaler un bug
       </button>
+      {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} />}
     </header>
   );
 }

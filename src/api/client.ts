@@ -31,3 +31,13 @@ export async function createFeed(promotions: string[], lessonIds: string[], sign
   const { token } = (await response.json()) as { token: string };
   return token;
 }
+
+export async function reportBug(description: string, signal: AbortSignal): Promise<void> {
+  const response = await fetch('/api/report-bug', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ description }),
+    signal,
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
