@@ -134,9 +134,13 @@
 }
 
 .feed-ready__status {
-  min-height: 1em;
+  display: none;
   margin: 0;
   color: var(--transparent-white-50);
   font-size: 12px;
   text-align: center;
+}
+
+.feed-ready__status--visible {
+  display: block;
 }

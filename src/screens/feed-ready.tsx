@@ -95,7 +95,7 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
       <div className="feed-ready__keep">
         <p className="feed-ready__keep-title">Ne perds pas cette page</p>
         <p className="feed-ready__keep-text">
-          Pas de compte chez HyperICS : ce lien unique est ta seule façon de revenir ici pour changer tes cours plus
+          Ce lien unique est ta seule façon de revenir ici pour changer tes cours plus
           tard. Si tu le perds, il faudra tout recommencer.
         </p>
 
