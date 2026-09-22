@@ -4,6 +4,7 @@ import checkBadgeUrl from '../assets/check-badge.svg';
 import { AddToHomeScreen } from '../components/add-to-home-screen';
 import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
+import { Stepper } from '../components/stepper';
 import './feed-ready.css';
 
 // Seule la variante iOS est dans la maquette : le visuel des deux autres
@@ -65,6 +66,7 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
   return (
     <div className="feed-ready">
       <AppHeader onBack={onBack} />
+      <Stepper total={4} current={4} />
 
       <h1 className="feed-ready__title">
         <img src={checkBadgeUrl} alt="" width={28} height={28} />

@@ -4,12 +4,41 @@
 }
 
 .stepper__segment {
+  position: relative;
   flex: 1 0 0;
   height: 4px;
   border-radius: var(--radius-stepper);
   background: var(--transparent-white-20);
+  overflow: hidden;
 }
 
-.stepper__segment--active {
+.stepper__segment::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: var(--primary-yellow);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.stepper__segment--active::after {
+  transform: scaleX(1);
+}
+
+.stepper__segment--current::after {
+  animation: stepper-fill 0.4s ease-out forwards;
+}
+
+@keyframes stepper-fill {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepper__segment--current::after {
+    animation: none;
+    transform: scaleX(1);
+  }
 }
