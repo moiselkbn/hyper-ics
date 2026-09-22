@@ -10,25 +10,37 @@ HyperICS — webapp SaaS open-source qui lie Hyperplanning au calendrier personn
 - Contrainte forte : budget nul (aucun service payant, uniquement offres gratuites).
 
 ## Stack
-- Front : React. Back : Node.js. Hébergement : Vercel (plan Hobby, gratuit).
-- Scrap : Playwright lancé par GitHub Actions (cron), pas par Vercel : le cron Vercel Hobby est limité à 1 exécution/jour et 4 h d'Active CPU/mois.
-- Stockage : Upstash Redis (offre gratuite), partagé entre le scrap (écriture) et l'API Vercel (lecture). Cours par promotion et hash des jetons y vivent.
-- Versions, gestionnaire de paquets, bundler : non définis. Ne jamais choisir ni installer une techno ou une dépendance sans proposer les options et attendre mon choix.
+- Front : React 19 + TypeScript, bundler Vite, gestionnaire de paquets npm. Code dans `src/`.
+- API : fonctions Vercel dans `api/` (JS `.mjs`, sans dépendance, `export function GET(request)`), logique testable dans `server/`, code partagé dans `shared/`. Hébergement : Vercel (plan Hobby, gratuit), région `fra1` (comme la base Upstash), projet lié au dépôt : chaque push sur `main` déploie en production.
+- Scrap : Node pur (`fetch` + `crypto`, sans Playwright ni dépendance), dans `scraper/`, lancé par GitHub Actions, pas par Vercel : le cron Vercel Hobby est limité à 1 exécution/jour et 4 h d'Active CPU/mois. Déclenché par Upstash QStash (offre gratuite), qui appelle toutes les 15 min l'API GitHub (`workflow_dispatch`) ; le cron GitHub natif reste en renfort, mais il saute la plupart de ses déclenchements. Réglage QStash fait dans sa console, hors dépôt.
+- Stockage : Upstash Redis (offre gratuite, région Frankfurt), partagé entre le scrap (écriture) et l'API Vercel (lecture). Clés `schedule-index` (liste des promotions, avec `hasCourses`), `schedule:<promotion>` (planning) et `token:<hash>` (sélection d'un élève, voir `shared/redis-keys.mjs`).
+- Dev local : `npm run dev` (Vite) + `npm run dev:api` (`scripts/dev-api.mjs`, proxy Vite), pas de `vercel dev`. Tests : `npm test` (`node --test`), types : `npm run typecheck`, build : `npm run build`.
+- Scrap à la main : `node --env-file=.env scraper/scrap-to-redis.mjs` (`--dry-run` : sans Redis) ; le workflow se lance aussi depuis l'onglet Actions. `.env` (ignoré par git, modèle `.env.example`) : `UPSTASH_REDIS_REST_URL` et `UPSTASH_REDIS_REST_TOKEN`, mêmes noms dans les secrets GitHub et les variables Vercel.
+- Ne jamais choisir ni installer une nouvelle techno ou dépendance sans proposer les options et attendre mon choix.
 - Le dépôt est public (open-source) : GitHub Actions y est gratuit et illimité.
 
 ## Contraintes de l'app
 - Hyperplanning de l'HEFF n'a pas d'export ICS natif : l'app récupère les cours par scrap, les interprète, puis les sert à chaque élève en flux ICS.
-- Fréquence du scrap : toutes les heures, de 7h à 17h, fuseau Europe/Brussels. Le cron GitHub est en UTC : filtrer l'heure locale dans le script (heure d'été).
+- Fréquence du scrap : toutes les heures, de 7h à 17h, fuseau Europe/Brussels. Déclenché toutes les 15 min (QStash, cron GitHub en renfort) ; le script filtre l'heure locale (`--only-in-hours`) et ne scrape que si le dernier scrap a plus de 50 min (`--skip-if-fresh`).
+- Périmètre du MVP : uniquement les promotions du campus Waterside (34 sur 64). Les autres ne sont jamais scrapées. Filtre et cursus (filières) dans `scraper/campus-scope.mjs`.
 - Pas de compte utilisateur (contrainte du MVP). Un jeton unique aléatoire (256 bits) par élève dans l'URL du flux ICS ; stocker uniquement son hash.
 - Hyperplanning est en accès public (mode invité), sans identifiant : https://heffpm.hyperplanning.fr/hp/invite. Le scrap ne stocke aucun identifiant d'élève.
 - Hyperplanning HEFF est PRONOTE Campus (Index Éducation). Le planning d'une promotion vient d'un POST `/hp/appelfonction/...` (`FonctionEmploiDuTemps`) dont la réponse est du JSON en clair, non chiffré. Le scrap se fait par promotion (1AT, 1EAA…), pas par élève.
-- Format constaté (à confirmer en implémentant) : grille de créneaux de 30 min de 8h à 21h (26 par jour), `p` = position dans la semaine, `d` = durée en créneaux, `dom` = semaines concernées (numérotées depuis la rentrée).
+- Format confirmé : grille de créneaux de 30 min de 8h à 21h (26 par jour), `p` = jour × 26 + créneau, `d` = durée en créneaux, `dom` = semaines concernées (semaine 1 = lundi 14/09/2026). Les identifiants de promotion changent à chaque session : retrouver une promotion par son libellé.
+- Un cours n'a pas toujours de code (ateliers, réunions, certaines promotions) et un même code peut couvrir deux matières : dans une promotion, un cours est identifié par son libellé de matière, pas par son code. Deux cours identiques au même moment ne doivent jamais apparaître en double.
+- Entre promotions, deux cours n'en font qu'un si le code ET la matière sont identiques, ou si la même matière a lieu au même moment (au moins une occurrence identique : semaine, jour, heures). Dédoublonné une fois pour toutes dans `server/lessons.mjs`, réutilisé par l'API et par le flux ICS (`server/feed.mjs`).
+- La salle d'un créneau peut changer en cours d'année : une requête sur tout le quadrimestre renvoie alors les deux salles pour toutes les semaines, sans dire laquelle s'applique où. Affiné par recherche dichotomique sur des sous-plages de semaines (`scraper/resolve-rooms.mjs`).
+- Affichage : la matière (pas le code) ; un seul prof, suivi de « +n » s'il y en a d'autres ; « Aucun cours publié » pour une promotion sans cours (`hasCourses` dans l'index) ; cursus dans l'ordre de `CURRICULA` ; deux promotions au plus, d'années différentes (décret paysage).
 - Par défaut, un élève suit tous les cours de sa promotion. Trois profils : (1) standard, cours de son année ; (2) chevauchement, cours de deux années car cours non validés ; (3) très rare, un cours en moins.
 - Le flux ICS est donc filtré par cours, pas par promotion : préréglage sur la promotion choisie, puis ajout de cours d'autres années et décochage. La sélection est modifiable à tout moment (obligatoire au MVP). Ne pas figer « un élève = une promotion ».
 - Un cours peut avoir plusieurs occurrences par semaine (un seul cours, à dédoublonner) et être commun à plusieurs promotions : modéliser cours et promotions en plusieurs-à-plusieurs.
 - Seul le 1er quadrimestre est visible dans Hyperplanning (semaines 1 à 16). Le 2e est traité après le MVP.
 - Prévoir une page de suppression des données à partir de l'URL du flux (pas de compte pour le faire).
 - Pas d'accord officiel de l'HEFF pour le scrap : bêta restreinte, requêtes espacées, transparence envers les élèves sur ce qui est stocké.
+
+## Avancement (2026-09-22)
+- Fait : scrap vers Redis déclenché toutes les 15 min (QStash + cron GitHub), résolution de la salle exacte par semaine, API de lecture déployée sur Vercel, front branché sur l'API de bout en bout (classes, cours, récapitulatif, génération), jeton et flux ICS réels (`/api/feed`, dédoublonnage, fuseau Europe/Brussels, précision de promotion en cas de chevauchement), bouton d'installation sur l'écran d'accueil (PWA).
+- Reste avant la bêta : sélection modifiable après coup (revenir sur un flux existant à partir de son URL — le bouton « Sauvegarder le lien » n'est pas encore branché), page de suppression des données, motif de reconnaissance pour le cursus « Accessoires de mode » (aucun libellé identifié pour l'instant).
 
 ## Design
 - Maquettes Figma : https://www.figma.com/design/WGIxtDqbfaS3B9ttpztTA7/HyperICS?node-id=30-17
