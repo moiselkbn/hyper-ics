@@ -20,6 +20,12 @@ export function App() {
   const [curricula, loadCurricula] = useRemote<Curriculum[]>();
   const [lessons, loadLessons] = useRemote<Lesson[]>();
   const [feed, loadFeed] = useRemote<string>();
+  // Sélection utilisée pour générer le flux affiché : sert à détecter, au retour sur le récapitulatif,
+  // si l'élève a changé d'avis (comparaison par référence, les deux Set ne changent que via un toggle).
+  const [feedSelection, setFeedSelection] = useState<{
+    promotions: ReadonlySet<string>;
+    lessons: ReadonlySet<string>;
+  } | null>(null);
 
   // Les promotions se chargent dès l'accueil : elles sont prêtes quand l'élève arrive à l'étape 1.
   useEffect(() => {
@@ -37,6 +43,7 @@ export function App() {
   // Lancé dès l'entrée dans l'écran de génération : le jeton est prêt pendant que son animation tourne.
   function requestFeed() {
     loadFeed((signal) => createFeed([...selected], [...selectedLessons], signal));
+    setFeedSelection({ promotions: selected, lessons: selectedLessons });
   }
 
   function togglePromotion(promotion: string, checked: boolean) {
@@ -108,6 +115,16 @@ export function App() {
         selected={selectedLessons}
         onBack={() => setScreen('lesson-choice')}
         onNext={() => {
+          // Sélection inchangée depuis la génération du flux actuel : inutile de rejouer l'animation.
+          const unchanged =
+            feed.status === 'ready' &&
+            feedSelection !== null &&
+            feedSelection.promotions === selected &&
+            feedSelection.lessons === selectedLessons;
+          if (unchanged) {
+            setScreen('feed-ready');
+            return;
+          }
           requestFeed();
           setScreen('generation');
         }}
@@ -129,5 +146,10 @@ export function App() {
   if (feed.status !== 'ready') {
     return <StatusScreen status={feed.status} onRetry={requestFeed} onBack={() => setScreen('generation')} />;
   }
-  return <FeedReady feedUrl={`${window.location.origin}/api/feed?token=${feed.data}`} onBack={() => setScreen('generation')} />;
+  return (
+    <FeedReady
+      feedUrl={`${window.location.origin}/api/feed?token=${feed.data}`}
+      onBack={() => setScreen('selection-review')}
+    />
+  );
 }
