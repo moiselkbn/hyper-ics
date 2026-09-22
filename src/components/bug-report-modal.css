@@ -49,10 +49,13 @@
   justify-content: space-between;
 }
 
-.bug-report-modal__cancel {
-  color: var(--transparent-white-50);
-}
-
+.bug-report-modal__cancel,
 .bug-report-modal__submit {
   width: 50%;
+  text-align: center;
+}
+
+.bug-report-modal__cancel {
+  padding: var(--space-2);
+  color: var(--transparent-white-50);
 }
