@@ -26,6 +26,9 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
   const [statusMessage, setStatusMessage] = useState('');
   const current = PLATFORMS.find((entry) => entry.id === platform) ?? PLATFORMS[0];
   const bareFeedUrl = feedUrl.replace(/^[a-z]+:\/\//i, '');
+  // webcal:// pointe vers http (non chiffré) ; webcals:// pointe vers https, à utiliser
+  // dès que le flux est servi en https (donc partout sauf en dev local).
+  const webcalScheme = feedUrl.startsWith('https://') ? 'webcals' : 'webcal';
 
   async function copyFeedUrl() {
     try {
@@ -52,7 +55,7 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
 
   function addToCalendar() {
     if (platform === 'android') {
-      const webcalUrl = `webcal://${bareFeedUrl}`;
+      const webcalUrl = `${webcalScheme}://${bareFeedUrl}`;
       window.open(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`, '_blank', 'noopener');
       return;
     }
@@ -60,7 +63,7 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
       window.location.href = `https://${bareFeedUrl}`;
       return;
     }
-    window.location.href = `webcal://${bareFeedUrl}`;
+    window.location.href = `${webcalScheme}://${bareFeedUrl}`;
   }
 
   return (
