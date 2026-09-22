@@ -5,11 +5,11 @@ import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
 import './feed-ready.css';
 
-// Seule la variante Safari est dans la maquette : les deux autres intitulés
-// sont à confirmer, comme la façon d'ajouter le flux sur chaque plateforme.
+// Seule la variante iOS est dans la maquette : le visuel des deux autres
+// reste à confirmer, la logique d'ajout est branchée pour les trois.
 const PLATFORMS = [
-  { id: 'safari', label: 'Safari', action: 'Ajouter à Apple Calendar' },
-  { id: 'chrome', label: 'Chrome', action: 'Ajouter à Google Agenda' },
+  { id: 'ios', label: 'iOS', action: 'Ajouter à Apple Calendar' },
+  { id: 'android', label: 'Android', action: 'Ajouter à Google Agenda' },
   { id: 'desktop', label: 'Mac/PC', action: 'Télécharger le fichier .ics' },
 ] as const;
 
@@ -31,7 +31,7 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
   }
 
   function addToCalendar() {
-    if (platform === 'chrome') {
+    if (platform === 'android') {
       const webcalUrl = `webcal://${bareFeedUrl}`;
       window.open(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`, '_blank', 'noopener');
       return;
