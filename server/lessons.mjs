@@ -13,6 +13,11 @@ export function parsePromotions(searchParams) {
     .split(',')
     .map((label) => label.trim())
     .filter(Boolean);
+  return validatePromotionLabels(labels);
+}
+
+// Mêmes règles que parsePromotions, mais pour un tableau déjà découpé (ex. le corps JSON de POST /api/subscription).
+export function validatePromotionLabels(labels) {
   const unique = [...new Set(labels)];
   if (unique.length === 0) throw new HttpError(400, 'Paramètre promotions manquant');
   if (unique.length > MAX_PROMOTIONS) throw new HttpError(400, `${MAX_PROMOTIONS} promotions au maximum`);
@@ -114,8 +119,11 @@ export function buildLessons(records) {
     // La plus ancienne des dates de scrap : c'est la fraîcheur garantie de la réponse.
     updatedAt: records.map((record) => record.scrapedAt).sort()[0] ?? null,
     lessons: merged
-      .map(({ id, subject, code, teachers, mandatory, promotions }) => ({
+      // `key` (la matière normalisée) identifie le cours dans chacune de ses promotions, même si son code change :
+      // c'est ce que l'abonnement enregistre (voir server/subscription.mjs), pas `id`.
+      .map(({ id, key, subject, code, teachers, mandatory, promotions }) => ({
         id,
+        key,
         subject,
         code,
         teachers,

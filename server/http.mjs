@@ -19,6 +19,15 @@ export const jsonNoStore = (body) => Response.json(body, { headers: { ...HEADERS
 export const errorResponse = (status, message) =>
   Response.json({ error: message }, { status, headers: { ...HEADERS, 'Cache-Control': 'no-store' } });
 
+// Corps JSON d'une requête POST/PUT ; un corps illisible est une erreur du client.
+export async function readJsonBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    throw new HttpError(400, 'Corps JSON invalide');
+  }
+}
+
 // Exécute une action de l'API et convertit toute erreur en réponse JSON.
 export async function respond(action) {
   try {

@@ -31,6 +31,7 @@ test('un cours à plusieurs occurrences par semaine n’est listé qu’une fois
   assert.deepEqual(lessons, [
     {
       id: 'code:TWEB-501|nouvelle technologie q5',
+      key: 'nouvelle technologie q5',
       subject: 'Nouvelle technologie Q5',
       code: 'TWEB-501',
       teachers: ['Lemal'],
@@ -42,7 +43,14 @@ test('un cours à plusieurs occurrences par semaine n’est listé qu’une fois
 
 test('la réponse n’expose pas les champs internes de la fusion', () => {
   const [lesson] = buildLessons([record('1AT', [slot({ subject: 'Tissage' })])]).lessons;
-  assert.deepEqual(Object.keys(lesson).sort(), ['code', 'id', 'mandatory', 'promotions', 'subject', 'teachers']);
+  assert.deepEqual(Object.keys(lesson).sort(), ['code', 'id', 'key', 'mandatory', 'promotions', 'subject', 'teachers']);
+});
+
+test('la clé d’un cours ne change pas quand il reçoit un code, contrairement à son identifiant', () => {
+  const [before] = buildLessons([record('2PUBB', [slot({ subject: 'Stratégie de marque' })])]).lessons;
+  const [after] = buildLessons([record('2PUBB', [slot({ subject: 'Stratégie de marque', code: 'PUB-201' })])]).lessons;
+  assert.notEqual(before.id, after.id);
+  assert.equal(before.key, after.key);
 });
 
 test('un cours de même code et même matière est commun à plusieurs promotions', () => {
