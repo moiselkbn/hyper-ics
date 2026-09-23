@@ -37,10 +37,54 @@
   color: var(--background-dark);
 }
 
-/* --- Ajout au calendrier --- */
+/* --- Ajout au calendrier (un panneau par plateforme) --- */
+
+.feed-ready__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
 
 .feed-ready__add {
   gap: 10px;
+}
+
+.feed-ready__hint {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Marche à suivre à la main, repliée par défaut : le bouton suffit dans la plupart des cas.
+   Pas de flex sur <details> lui-même : Safari l'ignore, d'où le conteneur __help-body. */
+.feed-ready__help[open] {
+  padding: var(--space-2);
+  border-radius: var(--space-2);
+  background: var(--transparent-white-20);
+}
+
+.feed-ready__help-summary {
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  text-align: center;
+  text-decoration: underline;
+  cursor: pointer;
+  list-style: none;
+}
+
+.feed-ready__help-summary::-webkit-details-marker {
+  display: none;
+}
+
+.feed-ready__help[open] > .feed-ready__help-summary {
+  color: var(--white);
+  text-align: left;
+}
+
+.feed-ready__help-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
 }
 
 /* --- Garder la page (lien + partage + écran d'accueil) --- */

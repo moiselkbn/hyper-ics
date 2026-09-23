@@ -1,5 +1,7 @@
 import type { Curriculum } from '../data/curricula';
-import type { Lesson } from '../data/lessons';
+import type { Lesson, SubscriptionPromotion } from '../data/lessons';
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 async function getJson<T>(url: string, signal: AbortSignal): Promise<T> {
   const response = await fetch(url, { signal });
@@ -19,10 +21,38 @@ export async function fetchLessons(promotions: string[], signal: AbortSignal): P
   return lessons;
 }
 
+// Crée l'abonnement de l'élève ; seul le hash du jeton est gardé côté serveur.
+export async function createSubscription(promotions: SubscriptionPromotion[], signal: AbortSignal): Promise<string> {
+  const response = await fetch('/api/subscription', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ promotions }),
+    signal,
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const { token } = (await response.json()) as { token: string };
+  return token;
+}
+
+// Remplace la sélection d'un abonnement existant : même jeton, donc même flux dans le calendrier.
+export async function updateSubscription(
+  token: string,
+  promotions: SubscriptionPromotion[],
+  signal: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`/api/subscription?${new URLSearchParams({ token })}`, {
+    method: 'PUT',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ promotions }),
+    signal,
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+
 export async function reportBug(description: string, signal: AbortSignal): Promise<void> {
   const response = await fetch('/api/report-bug', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: JSON_HEADERS,
     body: JSON.stringify({ description }),
     signal,
   });

@@ -2,6 +2,8 @@
 // Forme renvoyée par l'API (GET /api/lessons).
 export type Lesson = {
   id: string;
+  // Matière normalisée : identifie le cours dans chacune de ses promotions, même si son code change.
+  key: string;
   subject: string;
   // Absent pour les cours sans code (ateliers, réunions).
   code: string | null;
@@ -25,6 +27,27 @@ export function getLessonsOfPromotion(lessons: Lesson[], promotion: string): Les
 // Cours proposés au choix : les cours obligatoires n'y figurent pas.
 export function getSelectableLessons(lessons: Lesson[]): Lesson[] {
   return lessons.filter((lesson) => !lesson.mandatory);
+}
+
+// Ce que l'abonnement enregistre pour une promotion (voir server/subscription.mjs).
+export type SubscriptionPromotion = { label: string; checked: string[]; unchecked: string[] };
+
+// Pour chaque promotion choisie, ses cours à choisir tels que l'élève les a laissés, désignés par leur clé.
+// Mêmes groupes que l'écran de choix : un cours commun aux deux promotions figure dans les deux.
+// Les cours obligatoires n'y sont pas : le serveur les met toujours dans le flux.
+export function toSubscriptionPromotions(
+  promotions: string[],
+  lessons: Lesson[],
+  selected: ReadonlySet<string>,
+): SubscriptionPromotion[] {
+  return promotions.map((label) => {
+    const choices = getSelectableLessons(getLessonsOfPromotion(lessons, label));
+    return {
+      label,
+      checked: choices.filter((lesson) => selected.has(lesson.id)).map((lesson) => lesson.key),
+      unchecked: choices.filter((lesson) => !selected.has(lesson.id)).map((lesson) => lesson.key),
+    };
+  });
 }
 
 // Par défaut, un élève suit tous les cours de ses promotions, obligatoires compris.
