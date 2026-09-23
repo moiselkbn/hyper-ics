@@ -19,19 +19,6 @@ export async function fetchLessons(promotions: string[], signal: AbortSignal): P
   return lessons;
 }
 
-// Crée le jeton du flux ICS de l'élève à partir de sa sélection ; seul son hash est gardé côté serveur.
-export async function createFeed(promotions: string[], lessonIds: string[], signal: AbortSignal): Promise<string> {
-  const response = await fetch('/api/feed', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ promotions, lessonIds }),
-    signal,
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const { token } = (await response.json()) as { token: string };
-  return token;
-}
-
 export async function reportBug(description: string, signal: AbortSignal): Promise<void> {
   const response = await fetch('/api/report-bug', {
     method: 'POST',

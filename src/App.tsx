@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { createFeed, fetchCurricula, fetchLessons } from './api/client';
+import { fetchCurricula, fetchLessons } from './api/client';
 import { useRemote } from './api/use-remote';
 import { StatusScreen } from './components/status-screen';
 import { isPromotionDisabled, type Curriculum } from './data/curricula';
@@ -11,6 +11,9 @@ import { Landing } from './screens/landing';
 import { LessonChoice } from './screens/lesson-choice';
 import { SelectionReview } from './screens/selection-review';
 
+// Le jeton du flux n'est pas encore généré : URL factice en attendant.
+const MOCK_FEED_URL = 'hyperics.app/f/njifbzibfueifbzuii';
+
 export function App() {
   const [screen, setScreen] = useState<
     'landing' | 'class-choice' | 'lesson-choice' | 'selection-review' | 'generation' | 'feed-ready'
@@ -19,13 +22,6 @@ export function App() {
   const [selectedLessons, setSelectedLessons] = useState<ReadonlySet<string>>(new Set());
   const [curricula, loadCurricula] = useRemote<Curriculum[]>();
   const [lessons, loadLessons] = useRemote<Lesson[]>();
-  const [feed, loadFeed] = useRemote<string>();
-  // Sélection utilisée pour générer le flux affiché : sert à détecter, au retour sur le récapitulatif,
-  // si l'élève a changé d'avis (comparaison par référence, les deux Set ne changent que via un toggle).
-  const [feedSelection, setFeedSelection] = useState<{
-    promotions: ReadonlySet<string>;
-    lessons: ReadonlySet<string>;
-  } | null>(null);
 
   // Les promotions se chargent dès l'accueil : elles sont prêtes quand l'élève arrive à l'étape 1.
   useEffect(() => {
@@ -38,12 +34,6 @@ export function App() {
       // Préréglage : tous les cours des promotions choisies.
       (data) => setSelectedLessons(getDefaultLessonIds(data, selected)),
     );
-  }
-
-  // Lancé dès l'entrée dans l'écran de génération : le jeton est prêt pendant que son animation tourne.
-  function requestFeed() {
-    loadFeed((signal) => createFeed([...selected], [...selectedLessons], signal));
-    setFeedSelection({ promotions: selected, lessons: selectedLessons });
   }
 
   function togglePromotion(promotion: string, checked: boolean) {
@@ -114,20 +104,7 @@ export function App() {
         lessons={loadedLessons}
         selected={selectedLessons}
         onBack={() => setScreen('lesson-choice')}
-        onNext={() => {
-          // Sélection inchangée depuis la génération du flux actuel : inutile de rejouer l'animation.
-          const unchanged =
-            feed.status === 'ready' &&
-            feedSelection !== null &&
-            feedSelection.promotions === selected &&
-            feedSelection.lessons === selectedLessons;
-          if (unchanged) {
-            setScreen('feed-ready');
-            return;
-          }
-          requestFeed();
-          setScreen('generation');
-        }}
+        onNext={() => setScreen('generation')}
       />
     );
   }
@@ -143,13 +120,5 @@ export function App() {
     );
   }
 
-  if (feed.status !== 'ready') {
-    return <StatusScreen status={feed.status} onRetry={requestFeed} onBack={() => setScreen('generation')} />;
-  }
-  return (
-    <FeedReady
-      feedUrl={`${window.location.origin}/api/feed?token=${feed.data}`}
-      onBack={() => setScreen('selection-review')}
-    />
-  );
+  return <FeedReady feedUrl={MOCK_FEED_URL} onBack={() => setScreen('selection-review')} />;
 }

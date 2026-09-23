@@ -100,10 +100,6 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
           Ce lien unique est ta seule façon de revenir ici pour changer tes cours plus
           tard. Si tu le perds, il faudra tout recommencer.</p>
           <p className="feed-ready__keep-text">Conseil : <strong>pense à l'ajouter dans ton écran d'accueil </strong>ou tes favoris pour y accéder facilement.</p>
-        <p className="feed-ready__keep-text">
-          Le bouton ne propose pas l'abonnement sur ton iPhone ? Ajoute-le à la main : Réglages &gt;
-          Calendrier &gt; Comptes &gt; Ajouter un compte &gt; Autre &gt; Ajouter un abonnement au
-          calendrier, puis colle le lien ci-dessous.</p>
 
         <div className="feed-ready__link-field">
           <span className="feed-ready__link-url">{feedUrl}</span>
