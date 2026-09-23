@@ -56,10 +56,11 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
       window.open(`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`, '_blank', 'noopener');
       return;
     }
-    // iOS traduit webcal:// en http:// en interne, puis ne suit pas la redirection http→https
-    // imposée par Vercel (bug connu, contrairement à macOS qui la suit) : Safari en https direct
-    // évite cette étape et propose quand même l'abonnement natif, grâce au Content-Type ICS.
-    window.location.href = `https://${bareFeedUrl}`;
+    if (platform === 'desktop') {
+      window.location.href = `https://${bareFeedUrl}`;
+      return;
+    }
+    window.location.href = `webcal://${bareFeedUrl}`;
   }
 
   return (
@@ -99,7 +100,10 @@ export function FeedReady({ feedUrl, onBack }: FeedReadyProps) {
           Ce lien unique est ta seule façon de revenir ici pour changer tes cours plus
           tard. Si tu le perds, il faudra tout recommencer.</p>
           <p className="feed-ready__keep-text">Conseil : <strong>pense à l'ajouter dans ton écran d'accueil </strong>ou tes favoris pour y accéder facilement.</p>
-        
+        <p className="feed-ready__keep-text">
+          Le bouton ne propose pas l'abonnement sur ton iPhone ? Ajoute-le à la main : Réglages &gt;
+          Calendrier &gt; Comptes &gt; Ajouter un compte &gt; Autre &gt; Ajouter un abonnement au
+          calendrier, puis colle le lien ci-dessous.</p>
 
         <div className="feed-ready__link-field">
           <span className="feed-ready__link-url">{feedUrl}</span>
