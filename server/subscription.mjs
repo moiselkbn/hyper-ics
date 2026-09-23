@@ -85,8 +85,12 @@ async function assertPromotionsExist(redis, labels) {
   if (!labels.every((label) => known.has(label))) throw new HttpError(404, 'Promotion inconnue');
 }
 
+// Le flux a aussi une adresse publique, /f/<jeton>, réécrite vers /api/feed?token=… par vercel.json : on lit le
+// chemin en secours, pour ne pas dépendre de la forme d'URL que la plateforme transmet à la fonction.
+const FEED_PATH = /^\/f\/([^/]+)$/;
+
 function tokenFrom(url) {
-  const token = url.searchParams.get('token');
+  const token = url.searchParams.get('token') ?? url.pathname.match(FEED_PATH)?.[1];
   if (!token) throw new HttpError(400, 'Paramètre token manquant');
   // Un jeton mal formé ne peut correspondre à aucun abonnement : inutile d'interroger Redis.
   if (!isTokenFormat(token)) throw new HttpError(404, 'Abonnement inconnu');

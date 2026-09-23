@@ -19,6 +19,14 @@ export const jsonNoStore = (body) => Response.json(body, { headers: { ...HEADERS
 export const errorResponse = (status, message) =>
   Response.json({ error: message }, { status, headers: { ...HEADERS, 'Cache-Control': 'no-store' } });
 
+// Le flux ICS d'un élève. Pas de cache pendant la bêta : chaque interrogation d'un calendrier atteint la
+// fonction et apparaît donc dans les logs (qui interroge, avec quel résultat). À revoir si l'usage grimpe :
+// chaque interrogation coûte 2 commandes Upstash.
+export const icsResponse = (text) =>
+  new Response(text, {
+    headers: { ...HEADERS, 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+
 // Corps JSON d'une requête POST/PUT ; un corps illisible est une erreur du client.
 export async function readJsonBody(request) {
   try {
