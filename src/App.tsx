@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { createSubscription, fetchCurricula, fetchLessons, updateSubscription } from './api/client';
+import { useCallback, useEffect, useState } from 'react';
+import { createSubscription, fetchCurricula, fetchLessons, subscriptionExists, updateSubscription } from './api/client';
 import { useRemote } from './api/use-remote';
 import { StatusScreen } from './components/status-screen';
 import { isPromotionDisabled, type Curriculum } from './data/curricula';
 import { getDefaultLessonIds, toSubscriptionPromotions, type Lesson } from './data/lessons';
-import { feedUrl, pageUrl } from './data/subscription-links';
+import { feedUrl, leavePage, pageTokenOf, pageUrl, showPage } from './data/subscription-links';
 import { ClassChoice } from './screens/class-choice';
 import { FeedReady } from './screens/feed-ready';
 import { Generation } from './screens/generation';
@@ -12,14 +12,17 @@ import { Landing } from './screens/landing';
 import { LessonChoice } from './screens/lesson-choice';
 import { SelectionReview } from './screens/selection-review';
 
-type Screen = 'landing' | 'class-choice' | 'lesson-choice' | 'selection-review' | 'generation' | 'feed-ready';
+type Screen = 'landing' | 'class-choice' | 'lesson-choice' | 'selection-review' | 'generation' | 'feed-ready' | 'page';
 
 export function App() {
-  const [screen, setScreen] = useState<Screen>('landing');
+  // Page de l'élève (/m/<jeton>) ouverte depuis son lien : elle mène droit à son calendrier.
+  const [openedToken] = useState(() => pageTokenOf(window.location.pathname));
+  const [screen, setScreen] = useState<Screen>(openedToken ? 'page' : 'landing');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [selectedLessons, setSelectedLessons] = useState<ReadonlySet<string>>(new Set());
   const [curricula, loadCurricula] = useRemote<Curriculum[]>();
   const [lessons, loadLessons] = useRemote<Lesson[]>();
+  const [opened, loadOpened] = useRemote<boolean>();
   const [saved, loadSaved] = useRemote<string>();
   // Jeton de l'abonnement créé pendant cette visite. Il survit à un échec d'enregistrement : la tentative
   // suivante met à jour ce même abonnement au lieu d'en créer un second, que l'élève aurait pu ajouter en double.
@@ -39,6 +42,19 @@ export function App() {
     loadCurricula(fetchCurricula);
   }, [loadCurricula]);
 
+  // Avant d'afficher les liens d'une page ouverte depuis son lien, on vérifie que l'abonnement existe.
+  const requestOpened = useCallback(() => {
+    if (!openedToken) return;
+    loadOpened(
+      (signal) => subscriptionExists(openedToken, signal),
+      (exists) => {
+        if (exists) showPage(openedToken);
+      },
+    );
+  }, [openedToken, loadOpened]);
+
+  useEffect(requestOpened, [requestOpened]);
+
   function requestLessons() {
     loadLessons(
       (signal) => fetchLessons([...selected], signal),
@@ -56,9 +72,18 @@ export function App() {
         current
           ? updateSubscription(current, promotions, signal).then(() => current)
           : createSubscription(promotions, signal),
-      (savedToken) => setToken(savedToken),
+      (savedToken) => {
+        setToken(savedToken);
+        showPage(savedToken);
+      },
     );
     setSavedSelection({ promotions: selected, lessons: selectedLessons });
+  }
+
+  // Lien inconnu : retour à l'accueil pour créer un calendrier.
+  function startOver() {
+    leavePage();
+    setScreen('landing');
   }
 
   function togglePromotion(promotion: string, checked: boolean) {
@@ -79,6 +104,21 @@ export function App() {
       }
       return next;
     });
+  }
+
+  if (screen === 'page' && openedToken) {
+    if (opened.status !== 'ready') return <StatusScreen status={opened.status} onRetry={requestOpened} />;
+    if (!opened.data) {
+      return (
+        <StatusScreen
+          status="error"
+          message="Ce lien ne correspond à aucun calendrier. Vérifie qu’il a été copié en entier."
+          actionLabel="Créer mon calendrier"
+          onRetry={startOver}
+        />
+      );
+    }
+    return <FeedReady pageUrl={pageUrl(openedToken)} feedUrl={feedUrl(openedToken)} />;
   }
 
   if (screen === 'landing') {

@@ -49,6 +49,14 @@ export async function updateSubscription(
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
+// false : aucun abonnement pour ce jeton (lien mal copié, par exemple).
+export async function subscriptionExists(token: string, signal: AbortSignal): Promise<boolean> {
+  const response = await fetch(`/api/subscription?${new URLSearchParams({ token })}`, { signal });
+  if (response.status === 404) return false;
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return true;
+}
+
 export async function reportBug(description: string, signal: AbortSignal): Promise<void> {
   const response = await fetch('/api/report-bug', {
     method: 'POST',
