@@ -4,7 +4,7 @@ Ajoute ton horaire Hyperplanning à ton calendrier personnel, grâce à un abonn
 
 L'Hyperplanning de l'HEFF n'a pas d'export ICS natif. HyperICS récupère les cours, les interprète, puis les sert à chaque élève sous forme de flux ICS, filtré sur les cours qu'il suit réellement. Le flux se branche dans toute application de calendrier qui accepte les abonnements ICS.
 
-> **Statut : MVP en cours de développement.** Début de la bêta restreinte prévu le 25 septembre 2026. Le flux ICS n'est pas encore disponible : voir [État du projet](#état-du-projet).
+> **Statut : MVP en cours de développement.** Début de la bêta restreinte prévu le 25 septembre 2026. L'abonnement (flux ICS) fonctionne ; la sélection n'est pas encore modifiable après coup et la page de suppression des données n'existe pas encore : voir [État du projet](#état-du-projet).
 >
 > Projet indépendant, non affilié à l'HEFF ni à Index Éducation (éditeur d'Hyperplanning). Voir [Avertissement](#avertissement).
 
@@ -15,16 +15,17 @@ Hyperplanning (accès invité, sans identifiant)
         │  scrap toutes les heures, de 7h à 17h (Europe/Brussels)
         │  déclenché par GitHub Actions, réveillé toutes les 15 min par Upstash QStash
         ▼
-Upstash Redis : plannings par promotion, hash des jetons (à venir)
+Upstash Redis : plannings par promotion, abonnements (hash du jeton)
         │  lecture
         ▼
-API Vercel (/api)  ──►  front React (choix des cours)
-        └──►  flux ICS (à venir) ──► calendrier de l'élève
+API Vercel (/api)  ──►  front React (choix des cours, page de l'élève /m/<jeton>)
+        └──►  flux ICS (/f/<jeton>) ──► calendrier de l'élève
 ```
 
 - **Scrap par promotion, pas par élève.** Le planning d'une promotion (1AT, 1EAA…) vient d'Hyperplanning en JSON clair. Aucun identifiant d'élève n'est utilisé ni stocké.
-- **Pas de compte.** Un jeton aléatoire de 256 bits dans l'URL du flux identifie l'élève ; seul son hash est stocké (à venir).
+- **Pas de compte.** Un jeton aléatoire de 256 bits identifie l'abonnement de l'élève, dans l'adresse de sa page (`/m/<jeton>`, le lien à garder) et de son flux (`/f/<jeton>`, lu par son calendrier) ; seul son hash est stocké.
 - **Flux filtré par cours.** Par défaut, un élève suit tous les cours de sa promotion. Il peut ajouter des cours d'une autre année (cours non validés) ou en décocher, et modifier sa sélection à tout moment.
+- **Flux toujours à jour.** Le flux est un abonnement, pas un fichier importé : il est recalculé à chaque rafraîchissement du calendrier à partir du dernier scrap. Nouvelles semaines, changements d'horaire ou de salle arrivent seuls, et un cours publié plus tard entre dans le flux de la promotion suivie (dans la seconde promotion d'un élève en chevauchement, seuls les cours cochés comptent).
 - **Cours et promotions en plusieurs-à-plusieurs.** Un cours peut être commun à plusieurs promotions et avoir plusieurs occurrences par semaine : il n'est compté qu'une fois.
 
 ## Périmètre du MVP
@@ -39,9 +40,9 @@ API Vercel (/api)  ──►  front React (choix des cours)
 - [x] API de lecture : promotions et cours, branchée sur le front de bout en bout
 - [x] Installation sur l'écran d'accueil (PWA)
 - [x] Signalement de bug par mail (Resend)
-- [ ] Jeton et flux ICS
-- [ ] Sélection enregistrée et modifiable à partir de l'URL du flux
-- [ ] Page de suppression des données à partir de l'URL du flux
+- [x] Abonnement : jeton, flux ICS (fuseau Europe/Brussels, salle et prof de chaque séance), page de l'élève, ajout guidé par plateforme (iOS, Android, Mac/PC)
+- [ ] Sélection modifiable depuis la page de l'élève
+- [ ] Suppression des données depuis la page de l'élève
 
 ## Technique
 
@@ -56,7 +57,7 @@ Tout tient dans les offres gratuites (budget nul).
 | Stockage | Upstash Redis, via son API REST |
 
 ```
-api/          fonctions Vercel : GET /api/promotions, GET /api/lessons, POST /api/report-bug
+api/          fonctions Vercel : promotions, lessons, subscription, feed, manifest, report-bug
 server/       logique de l'API, testable sans Vercel
 scraper/      scrap d'Hyperplanning et synchronisation vers Redis
 shared/       code commun au scrap et à l'API (client Redis, noms de clés)
@@ -115,11 +116,17 @@ npm run dev
 | Route | Réponse | Erreurs |
 | --- | --- | --- |
 | `GET /api/promotions` | `{ updatedAt, curricula: [{ id, name, promotions[] }] }` | 503 tant que le premier scrap n'a pas réussi |
-| `GET /api/lessons?promotions=3TI Web,2TE` | `{ updatedAt, lessons: [{ id, subject, code, teachers[], promotions[] }] }` | 400 si le paramètre est absent ou invalide ; 404 si une promotion est inconnue |
+| `GET /api/lessons?promotions=3TI Web,2TE` | `{ updatedAt, lessons: [{ id, key, subject, code, teachers[], mandatory, promotions[] }] }` | 400 si le paramètre est absent ou invalide ; 404 si une promotion est inconnue |
+| `POST /api/subscription` | Corps `{ promotions: [{ label, checked[], unchecked[] }] }` (clés de matière) → `{ token }` | 400 si la sélection est invalide ; 404 si une promotion est inconnue |
+| `GET /api/subscription?token=…` | `{ promotions[] }` | 400 sans jeton ; 404 si l'abonnement n'existe pas |
+| `PUT /api/subscription?token=…` | Même corps que le POST → `{ ok }` : remplace la sélection, même jeton | Mêmes erreurs que POST et GET |
+| `GET /f/<jeton>` (`/api/feed?token=…`) | Flux ICS (`text/calendar`), aussi en `HEAD` | 400 sans jeton ; 404 si l'abonnement n'existe pas |
+| `GET /api/manifest?token=…` | Manifest de l'app qui s'ouvre sur `/m/<jeton>` (icône d'écran d'accueil) | 400 si le jeton est mal formé |
 
-- `lessons` accepte 2 promotions au maximum : un élève ne chevauche que deux années.
+- `lessons` et `subscription` acceptent 2 promotions au maximum : un élève ne chevauche que deux années.
 - Un cours est commun à plusieurs promotions seulement si le code **et** la matière sont identiques.
-- Les réponses de lecture sont mises en cache (5 min côté CDN) : les données ne changent qu'au rythme du scrap.
+- Un abonnement enregistre, par promotion, un mode et des clés de matière (`key`), pas des identifiants de cours : la clé ne change pas quand un cours reçoit un code. Mode `all-except` (la promotion de l'élève : tous ses cours, présents et à venir, sauf les décochés) ou `only` (seconde promotion d'un élève en chevauchement : seulement les cours cochés). Les cours sans code sont toujours dans le flux.
+- Les réponses de lecture sont mises en cache (5 min côté CDN) : les données ne changent qu'au rythme du scrap. Le flux ne l'est pas pendant la bêta, pour que chaque interrogation apparaisse dans les logs (méthode, statut, user-agent, jamais le jeton).
 
 ## Scrap
 
@@ -145,8 +152,8 @@ Précautions envers Hyperplanning : 1,5 s entre deux requêtes, une seule sessio
 ## Données et vie privée
 
 - **Plannings** : Redis contient les plannings des promotions du périmètre (matières, codes, horaires, enseignants, salles, semaines), des données déjà publiques dans Hyperplanning. Aucune donnée d'élève.
-- **Prévu avec le flux** : uniquement le hash du jeton, la sélection de cours et la date de création. Ni nom, ni e-mail, ni identifiant Hyperplanning.
-- **Suppression** : à venir, une page dédiée accessible depuis l'URL du flux effacera ces données.
+- **Par abonnement** : uniquement le hash du jeton, les promotions choisies avec, pour chacune, les matières cochées ou décochées, et les dates de création et de mise à jour. Ni nom, ni e-mail, ni identifiant Hyperplanning. Le jeton en clair n'est jamais stocké ni journalisé.
+- **Suppression** : à venir, depuis la page de l'élève.
 - Le dépôt est public : aucun secret dans le code, uniquement des variables d'environnement.
 
 ## Avertissement
