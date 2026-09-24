@@ -173,12 +173,28 @@ test('getSubscription répond 400 sans jeton et 404 pour un jeton mal formé ou 
   await assert.rejects(get(`?token=${generateToken()}`), { status: 404 });
 });
 
-test('getSubscription renvoie les promotions de l’abonnement', async () => {
-  const redis = inMemoryRedis(index('3TI Web'));
-  const { token } = await (await createSubscription(redis, post({ promotions: [entry('3TI Web', ['a'])] }))).json();
+test('getSubscription renvoie la sélection enregistrée, mode et clés de chaque promotion', async () => {
+  const redis = inMemoryRedis(index('3TI Web', '2TI Web'));
+  const body = { promotions: [entry('3TI Web', ['a', 'b'], ['c']), entry('2TI Web', ['x'], ['y', 'z'])] };
+  const { token } = await (await createSubscription(redis, post(body))).json();
   const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
-  assert.deepEqual(await response.json(), { promotions: ['3TI Web'] });
+  // Ni les dates ni rien d'autre : seulement de quoi recocher la sélection.
+  assert.deepEqual(await response.json(), {
+    promotions: [
+      { label: '3TI Web', mode: 'all-except', keys: ['c'] },
+      { label: '2TI Web', mode: 'only', keys: ['x'] },
+    ],
+  });
+});
+
+test('getSubscription ne renvoie pas une promotion sortie de l’index depuis', async () => {
+  const redis = inMemoryRedis(index('3TI Web', '2TI Web'));
+  const body = { promotions: [entry('3TI Web', ['a']), entry('2TI Web', ['x'], ['y'])] };
+  const { token } = await (await createSubscription(redis, post(body))).json();
+  redis.store.set(SCHEDULE_INDEX_KEY, JSON.stringify(index('3TI Web')[SCHEDULE_INDEX_KEY]));
+  const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
+  assert.deepEqual(await response.json(), { promotions: [{ label: '3TI Web', mode: 'all-except', keys: [] }] });
 });
 
 test('updateSubscription remplace la sélection sous le même jeton et garde la date de création', async () => {

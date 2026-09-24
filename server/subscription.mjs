@@ -1,6 +1,7 @@
 // Abonnement d'un élève, retrouvé par le hash de son jeton (jamais le jeton en clair).
 // POST /api/subscription : crée l'abonnement et renvoie le jeton, une seule fois.
-// GET /api/subscription?token=… : dit si l'abonnement existe (page de retour /m/<jeton>).
+// GET /api/subscription?token=… : la sélection enregistrée (page de retour /m/<jeton>, qui la recoche quand l'élève
+// revient la modifier) ; 404 si l'abonnement n'existe pas.
 // PUT /api/subscription?token=… : remplace la sélection d'un abonnement existant : même jeton, donc même flux,
 // sans doublon dans le calendrier de l'élève.
 // La logique est ici ; api/subscription.mjs ne fait que la brancher sur Redis.
@@ -79,9 +80,13 @@ export function isLessonFollowed(lesson, subscription) {
 }
 
 // L'index ne liste que des promotions qui ont un planning en base.
-async function assertPromotionsExist(redis, labels) {
+async function knownPromotions(redis) {
   const index = await redis.getJson(SCHEDULE_INDEX_KEY);
-  const known = new Set((index?.promotions ?? []).map((entry) => entry.label));
+  return new Set((index?.promotions ?? []).map((entry) => entry.label));
+}
+
+async function assertPromotionsExist(redis, labels) {
+  const known = await knownPromotions(redis);
   if (!labels.every((label) => known.has(label))) throw new HttpError(404, 'Promotion inconnue');
 }
 
@@ -119,9 +124,12 @@ export async function createSubscription(redis, request, now = new Date()) {
   return jsonNoStore({ token });
 }
 
+// Une promotion sortie de l'index depuis (hors périmètre, renommée) n'est pas renvoyée : l'élève ne pourrait ni la
+// voir ni la décocher, et le PUT la refuserait.
 export async function getSubscription(redis, url) {
   const { subscription } = await findSubscription(redis, url);
-  return jsonNoStore({ promotions: subscription.promotions.map((entry) => entry.label) });
+  const known = await knownPromotions(redis);
+  return jsonNoStore({ promotions: subscription.promotions.filter((entry) => known.has(entry.label)) });
 }
 
 export async function updateSubscription(redis, request, now = new Date()) {

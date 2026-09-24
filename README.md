@@ -118,7 +118,7 @@ npm run dev
 | `GET /api/promotions` | `{ updatedAt, curricula: [{ id, name, promotions[] }] }` | 503 tant que le premier scrap n'a pas réussi |
 | `GET /api/lessons?promotions=3TI Web,2TE` | `{ updatedAt, lessons: [{ id, key, subject, code, teachers[], mandatory, promotions[] }] }` | 400 si le paramètre est absent ou invalide ; 404 si une promotion est inconnue |
 | `POST /api/subscription` | Corps `{ promotions: [{ label, checked[], unchecked[] }] }` (clés de matière) → `{ token }` | 400 si la sélection est invalide ; 404 si une promotion est inconnue |
-| `GET /api/subscription?token=…` | `{ promotions[] }` | 400 sans jeton ; 404 si l'abonnement n'existe pas |
+| `GET /api/subscription?token=…` | `{ promotions: [{ label, mode, keys[] }] }` : la sélection enregistrée, recochée quand l'élève la modifie (sans les promotions sorties de l'index) | 400 sans jeton ; 404 si l'abonnement n'existe pas |
 | `PUT /api/subscription?token=…` | Même corps que le POST → `{ ok }` : remplace la sélection, même jeton | Mêmes erreurs que POST et GET |
 | `GET /f/<jeton>` (`/api/feed?token=…`) | Flux ICS (`text/calendar`), aussi en `HEAD` | 400 sans jeton ; 404 si l'abonnement n'existe pas |
 | `GET /api/manifest?token=…` | Manifest de l'app qui s'ouvre sur `/m/<jeton>` (icône d'écran d'accueil) | 400 si le jeton est mal formé |
