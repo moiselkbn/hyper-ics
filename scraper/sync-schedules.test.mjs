@@ -13,6 +13,7 @@ function fakeRedis({ failOn = [], initial = {} } = {}) {
   return {
     store,
     getJson: async (key) => (store.has(key) ? JSON.parse(store.get(key)) : null),
+    mgetJson: async (keys) => keys.map((key) => (store.has(key) ? JSON.parse(store.get(key)) : null)),
     setJson: async (key, value) => {
       if (failOn.includes(key)) throw new Error('Redis SET : HTTP 500');
       store.set(key, JSON.stringify(value));
@@ -155,4 +156,76 @@ test("sans aucune écriture réussie, la liste existante n'est pas touchée", as
   const result = await run({ promotions: [promo('3TI Web')], fetchRaw: async () => ({}), redis });
   assert.deepEqual(result.written, []);
   assert.deepEqual(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)), previous);
+});
+
+// --- Coût de la résolution des salles : reprise du planning précédent, budget par passage.
+
+const noRequest = async () => {
+  throw new Error('ne doit pas être appelé');
+};
+
+test('syncSchedules reprend la résolution des salles du planning précédent, sans requête', async () => {
+  const resolvedCourse = {
+    ...buildScheduleRecord({
+      promotion: promo('3TI Web'),
+      raw: rawAmbiguous({ dom: '[2,10]', rooms: ['L320', 'L316'] }),
+      firstMonday: FIRST_MONDAY,
+      now: NOW,
+    }).courses[0],
+    roomsByWeek: { 2: ['L320'], 10: ['L316'] },
+    roomsResolvedAt: new Date(NOW - 60 * 60 * 1000).toISOString(),
+  };
+  const redis = fakeRedis({ initial: { [scheduleKey('3TI Web')]: { promotion: '3TI Web', courses: [resolvedCourse] } } });
+  const logs = [];
+  await run({
+    promotions: [promo('3TI Web')],
+    fetchRaw: async () => rawAmbiguous({ dom: '[2,10]', rooms: ['L320', 'L316'] }),
+    fetchRawWeeks: noRequest,
+    redis,
+    log: (message) => logs.push(message),
+  });
+  const { courses } = JSON.parse(redis.store.get(scheduleKey('3TI Web')));
+  assert.deepEqual(courses[0].roomsByWeek, { 2: ['L320'], 10: ['L316'] });
+  assert.ok(logs.includes('3TI Web : 1 créneaux écrits (salles : 1 reprises, 0 affinées, 0 reportées)'));
+});
+
+test('budget épuisé : aucune requête de plus, mais toutes les promotions et la liste sont écrites', async () => {
+  const redis = fakeRedis();
+  const logs = [];
+  const result = await run({
+    promotions: [promo('3TI Web'), promo('2TI Web')],
+    fetchRaw: async () => rawAmbiguous({ dom: '[2,10]', rooms: ['L320', 'L316'] }),
+    fetchRawWeeks: noRequest,
+    redis,
+    roomBudgetMs: 0,
+    log: (message) => logs.push(message),
+  });
+  assert.deepEqual(result, { written: ['3TI Web', '2TI Web'], failed: [] });
+  assert.equal(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)).promotions.length, 2);
+  const { courses } = JSON.parse(redis.store.get(scheduleKey('2TI Web')));
+  assert.deepEqual(courses[0].rooms, ['L320', 'L316']); // salles telles quelles, à affiner au prochain passage
+  assert.ok(logs.includes('2TI Web : 1 créneaux écrits (salles : 0 reprises, 0 affinées, 1 reportées)'));
+});
+
+test('un planning écrit avant la datation des résolutions compte comme résolu à sa date de scrap', async () => {
+  const oldCourse = {
+    ...buildScheduleRecord({
+      promotion: promo('3TI Web'),
+      raw: rawAmbiguous({ dom: '[2,10]', rooms: ['L320', 'L316'] }),
+      firstMonday: FIRST_MONDAY,
+      now: NOW,
+    }).courses[0],
+    roomsByWeek: { 2: ['L320'], 10: ['L316'] }, // sans roomsResolvedAt : écrit par l'ancien scrap
+  };
+  const scrapedAt = new Date(NOW - 2 * 24 * 60 * 60 * 1000).toISOString(); // il y a 2 jours
+  const redis = fakeRedis({ initial: { [scheduleKey('3TI Web')]: { promotion: '3TI Web', scrapedAt, courses: [oldCourse] } } });
+  await run({
+    promotions: [promo('3TI Web')],
+    fetchRaw: async () => rawAmbiguous({ dom: '[2,10]', rooms: ['L320', 'L316'] }),
+    fetchRawWeeks: noRequest,
+    redis,
+  });
+  const { courses } = JSON.parse(redis.store.get(scheduleKey('3TI Web')));
+  assert.deepEqual(courses[0].roomsByWeek, { 2: ['L320'], 10: ['L316'] });
+  assert.equal(courses[0].roomsResolvedAt, scrapedAt);
 });

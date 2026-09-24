@@ -23,26 +23,76 @@ export function buildScheduleRecord({ promotion, raw, firstMonday, now }) {
   };
 }
 
+// Temps accordé, par passage, aux requêtes qui affinent la salle par semaine (voir resolve-rooms.mjs).
+// Le job GitHub est coupé à 10 minutes (.github/workflows/scrap.yml) et le planning de base des 34 promotions
+// en prend environ 2 : au-delà de ce budget, les créneaux restants gardent leur résolution précédente et
+// seront affinés à un prochain passage. Chaque passage écrit ainsi toutes les promotions, puis la liste.
+export const ROOM_RESOLUTION_BUDGET_MS = 5 * 60 * 1000;
+
+const describeRooms = ({ reused, resolved, deferred }) =>
+  reused + resolved + deferred === 0 ? '' : ` (salles : ${reused} reprises, ${resolved} affinées, ${deferred} reportées)`;
+
+// Créneaux du planning précédent de chaque promotion, dont on reprend la résolution des salles. Un échec de
+// lecture n'empêche pas le scrap : tout sera simplement résolu à nouveau, dans la limite du budget.
+async function readPreviousCourses(redis, promotions, log) {
+  try {
+    const records = await redis.mgetJson(promotions.map((promotion) => scheduleKey(promotion.label)));
+    return new Map(
+      records.filter(Boolean).map((record) => [
+        record.promotion,
+        // Planning écrit avant la datation des résolutions : il n'était écrit qu'une fois ses salles résolues,
+        // sa date de scrap est donc celle de la résolution.
+        record.courses.map((course) =>
+          course.roomsByWeek && !course.roomsResolvedAt ? { ...course, roomsResolvedAt: record.scrapedAt } : course,
+        ),
+      ]),
+    );
+  } catch (error) {
+    log(`Plannings précédents illisibles (${error.message}) : les salles seront toutes résolues à nouveau.`);
+    return new Map();
+  }
+}
+
 // Une promotion en échec garde son ancien planning : on ne l'écrase jamais avec un résultat douteux.
 // `fetchRawWeeks(promotion, weeksRangeText)` : même requête que `fetchRaw`, sur une plage de semaines
 // réduite ; sert à affiner les créneaux dont la salle change en cours d'année (voir resolve-rooms.mjs).
 // Optionnel : sans lui, les créneaux ambigus gardent leurs salles telles quelles, sans requête de plus.
-export async function syncSchedules({ promotions, fetchRaw, fetchRawWeeks, redis, firstMonday, now = new Date(), log = () => {} }) {
+export async function syncSchedules({
+  promotions,
+  fetchRaw,
+  fetchRawWeeks,
+  redis,
+  firstMonday,
+  now = new Date(),
+  clock = Date.now,
+  roomBudgetMs = ROOM_RESOLUTION_BUDGET_MS,
+  log = () => {},
+}) {
   const written = [];
   const failed = [];
   const hasCourses = new Map(); // promotion écrite -> son planning contient au moins un créneau
+  const previousCourses = fetchRawWeeks ? await readPreviousCourses(redis, promotions, log) : new Map();
+  const deadline = clock() + roomBudgetMs;
 
   for (const promotion of promotions) {
     try {
       const raw = await fetchRaw(promotion);
       const record = buildScheduleRecord({ promotion, raw, firstMonday, now });
+      let rooms = '';
       if (fetchRawWeeks) {
-        record.courses = await resolveAmbiguousRooms((weeksRange) => fetchRawWeeks(promotion, weeksRange), record.courses);
+        const result = await resolveAmbiguousRooms((weeksRange) => fetchRawWeeks(promotion, weeksRange), record.courses, {
+          previous: previousCourses.get(promotion.label) ?? [],
+          now,
+          deadline,
+          clock,
+        });
+        record.courses = result.courses;
+        rooms = describeRooms(result);
       }
       await redis.setJson(scheduleKey(promotion.label), record);
       written.push(promotion.label);
       hasCourses.set(promotion.label, record.courses.length > 0);
-      log(`${promotion.label} : ${record.courses.length} créneaux écrits`);
+      log(`${promotion.label} : ${record.courses.length} créneaux écrits${rooms}`);
     } catch (error) {
       failed.push({ label: promotion.label, message: error.message });
       log(`${promotion.label} : ÉCHEC (${error.message})`);

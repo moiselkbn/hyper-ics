@@ -28,6 +28,7 @@ const memory = new Map();
 const memoryRedis = {
   getJson: async (key) => (memory.has(key) ? JSON.parse(memory.get(key)) : null),
   setJson: async (key, value) => void memory.set(key, JSON.stringify(value)),
+  mgetJson: async (keys) => keys.map((key) => (memory.has(key) ? JSON.parse(memory.get(key)) : null)),
 };
 const redis = dryRun ? memoryRedis : createRedisClient();
 

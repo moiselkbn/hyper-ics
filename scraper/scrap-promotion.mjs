@@ -25,7 +25,7 @@ if (!promotion) {
 }
 
 const raw = await fetchRawSchedule(session, promotion);
-const courses = await resolveAmbiguousRooms(
+const { courses } = await resolveAmbiguousRooms(
   (weeksRange) => fetchRawSchedule(session, promotion, weeksRange),
   parseCourses(raw.ListeCours),
 );
