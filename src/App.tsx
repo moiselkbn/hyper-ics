@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createSubscription, fetchCurricula, fetchLessons, fetchSubscription, updateSubscription } from './api/client';
+import {
+  createSubscription,
+  deleteSubscription,
+  fetchCurricula,
+  fetchLessons,
+  fetchSubscription,
+  updateSubscription,
+} from './api/client';
 import { useRemote } from './api/use-remote';
 import { StatusScreen } from './components/status-screen';
 import { isPromotionDisabled, type Curriculum } from './data/curricula';
@@ -17,8 +24,17 @@ import { Generation } from './screens/generation';
 import { Landing } from './screens/landing';
 import { LessonChoice } from './screens/lesson-choice';
 import { SelectionReview } from './screens/selection-review';
+import { SubscriptionDeleted } from './screens/subscription-deleted';
 
-type Screen = 'landing' | 'class-choice' | 'lesson-choice' | 'selection-review' | 'generation' | 'feed-ready' | 'page';
+type Screen =
+  | 'landing'
+  | 'class-choice'
+  | 'lesson-choice'
+  | 'selection-review'
+  | 'generation'
+  | 'feed-ready'
+  | 'page'
+  | 'deleted';
 
 export function App() {
   // Page de l'élève (/m/<jeton>) ouverte depuis son lien : elle mène droit à son calendrier.
@@ -120,6 +136,20 @@ export function App() {
     setSavedSelection({ promotions: selected, lessons: selectedLessons });
   }
 
+  // « Supprimer mon calendrier », confirmé dans la fenêtre (qui affiche l'attente et l'échec). Ensuite, plus rien ne
+  // renvoie à cet abonnement : l'adresse redevient celle de l'accueil, et un nouveau calendrier sera créé, pas
+  // mis à jour.
+  async function requestDelete() {
+    if (!openedToken) return;
+    await deleteSubscription(openedToken, new AbortController().signal);
+    leavePage();
+    setToken(null);
+    setSelected(new Set());
+    setSelectedLessons(new Set());
+    setSavedSelection(null);
+    setScreen('deleted');
+  }
+
   // Lien inconnu : retour à l'accueil pour créer un calendrier.
   function startOver() {
     leavePage();
@@ -158,7 +188,18 @@ export function App() {
         />
       );
     }
-    return <FeedReady pageUrl={pageUrl(openedToken)} feedUrl={feedUrl(openedToken)} onEdit={requestEdit} />;
+    return (
+      <FeedReady
+        pageUrl={pageUrl(openedToken)}
+        feedUrl={feedUrl(openedToken)}
+        onEdit={requestEdit}
+        onDelete={requestDelete}
+      />
+    );
+  }
+
+  if (screen === 'deleted') {
+    return <SubscriptionDeleted onRestart={() => setScreen('landing')} />;
   }
 
   if (screen === 'landing') {
@@ -243,7 +284,15 @@ export function App() {
   }
   // Modification enregistrée : l'élève retrouve sa page, avec la confirmation.
   if (editing) {
-    return <FeedReady pageUrl={pageUrl(saved.data)} feedUrl={feedUrl(saved.data)} onEdit={requestEdit} updated />;
+    return (
+      <FeedReady
+        pageUrl={pageUrl(saved.data)}
+        feedUrl={feedUrl(saved.data)}
+        onEdit={requestEdit}
+        onDelete={requestDelete}
+        updated
+      />
+    );
   }
   return (
     <FeedReady

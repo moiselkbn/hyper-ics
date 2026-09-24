@@ -59,6 +59,12 @@ export async function fetchSubscription(token: string, signal: AbortSignal): Pro
   return promotions;
 }
 
+// Supprime l'abonnement. 404 : déjà supprimé (depuis un autre appareil, par exemple), le résultat est le même.
+export async function deleteSubscription(token: string, signal: AbortSignal): Promise<void> {
+  const response = await fetch(`/api/subscription?${new URLSearchParams({ token })}`, { method: 'DELETE', signal });
+  if (!response.ok && response.status !== 404) throw new Error(`HTTP ${response.status}`);
+}
+
 export async function reportBug(description: string, signal: AbortSignal): Promise<void> {
   const response = await fetch('/api/report-bug', {
     method: 'POST',

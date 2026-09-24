@@ -4,7 +4,7 @@ Ajoute ton horaire Hyperplanning à ton calendrier personnel, grâce à un abonn
 
 L'Hyperplanning de l'HEFF n'a pas d'export ICS natif. HyperICS récupère les cours, les interprète, puis les sert à chaque élève sous forme de flux ICS, filtré sur les cours qu'il suit réellement. Le flux se branche dans toute application de calendrier qui accepte les abonnements ICS.
 
-> **Statut : MVP en cours de développement.** Début de la bêta restreinte prévu le 25 septembre 2026. L'abonnement (flux ICS) fonctionne et la sélection se modifie depuis la page de l'élève ; la page de suppression des données n'existe pas encore : voir [État du projet](#état-du-projet).
+> **Statut : MVP en cours de développement.** Début de la bêta restreinte prévu le 25 septembre 2026. L'abonnement (flux ICS) fonctionne ; depuis sa page, l'élève modifie sa sélection ou supprime son calendrier : voir [État du projet](#état-du-projet).
 >
 > Projet indépendant, non affilié à l'HEFF ni à Index Éducation (éditeur d'Hyperplanning). Voir [Avertissement](#avertissement).
 
@@ -42,7 +42,7 @@ API Vercel (/api)  ──►  front React (choix des cours, page de l'élève /m
 - [x] Signalement de bug par mail (Resend)
 - [x] Abonnement : jeton, flux ICS (fuseau Europe/Brussels, salle et prof de chaque séance), page de l'élève, ajout guidé par plateforme (iOS, Android, Mac/PC)
 - [x] Sélection modifiable depuis la page de l'élève
-- [ ] Suppression des données depuis la page de l'élève
+- [x] Suppression des données depuis la page de l'élève
 
 ## Technique
 
@@ -154,7 +154,7 @@ Précautions envers Hyperplanning : 1,5 s entre deux requêtes, une seule sessio
 
 - **Plannings** : Redis contient les plannings des promotions du périmètre (matières, codes, horaires, enseignants, salles, semaines), des données déjà publiques dans Hyperplanning. Aucune donnée d'élève.
 - **Par abonnement** : uniquement le hash du jeton, les promotions choisies avec, pour chacune, les matières cochées ou décochées, et les dates de création et de mise à jour. Ni nom, ni e-mail, ni identifiant Hyperplanning. Le jeton en clair n'est jamais stocké ni journalisé.
-- **Suppression** : à venir, depuis la page de l'élève.
+- **Suppression** : depuis sa page, l'élève efface son abonnement. Promotions, matières et dates disparaissent tout de suite ; il ne reste que le hash du jeton et la date de suppression, effacés par Redis après 7 jours. Pendant ce délai, le flux sert un calendrier vide, pour que les cours disparaissent aussi de son application de calendrier.
 - Le dépôt est public : aucun secret dans le code, uniquement des variables d'environnement.
 
 ## Avertissement

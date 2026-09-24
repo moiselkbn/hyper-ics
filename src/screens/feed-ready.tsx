@@ -4,6 +4,8 @@ import checkBadgeUrl from '../assets/check-badge.svg';
 import { AddToHomeScreen } from '../components/add-to-home-screen';
 import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
+import { CalendarAppTabs } from '../components/calendar-app-tabs';
+import { DeleteSubscriptionModal } from '../components/delete-subscription-modal';
 import { Stepper } from '../components/stepper';
 import {
   detectCalendarApp,
@@ -15,14 +17,6 @@ import {
   type CalendarApp,
 } from '../data/subscription-links';
 import './feed-ready.css';
-
-// Un onglet par application de calendrier, pas par appareil : le lien Apple est le même sur iPhone, iPad et Mac.
-// Seul l'onglet Apple est dans la maquette : Google et Outlook en reprennent le style.
-const CALENDAR_APPS: { id: CalendarApp; label: string }[] = [
-  { id: 'apple', label: 'Apple' },
-  { id: 'google', label: 'Google' },
-  { id: 'outlook', label: 'Outlook' },
-];
 
 // Ajout à la main, selon l'appareil Apple.
 const APPLE_TOUCH_STEPS =
@@ -128,17 +122,20 @@ type FeedReadyProps = {
   onEdit?: () => void;
   // Sélection tout juste modifiée depuis la page de l'élève.
   updated?: boolean;
+  // Page de l'élève : supprimer son calendrier, après confirmation.
+  onDelete?: () => Promise<void>;
 };
 
 // Dernier écran : l'abonnement est prêt, l'élève l'ajoute à son calendrier.
 // Le flux se met à jour tout seul : c'est un abonnement, jamais un fichier importé une fois pour toutes.
-export function FeedReady({ pageUrl, feedUrl, onBack, onEdit, updated = false }: FeedReadyProps) {
+export function FeedReady({ pageUrl, feedUrl, onBack, onEdit, updated = false, onDelete }: FeedReadyProps) {
   const [app, setApp] = useState<CalendarApp>(() => detectCalendarApp());
   const [keepMessage, setKeepMessage] = useState('');
   // Après une modification, l'ajout au calendrier est replié : l'élève l'a normalement déjà fait, et l'ajouter une
   // seconde fois doublerait ses cours. Il reste accessible pour celui qui ne l'avait pas encore fait.
   const [addRevealed, setAddRevealed] = useState(false);
   const showAdd = !updated || addRevealed;
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const phone = isPhone();
   // Sur un téléphone, le lien direct vers Google Agenda ou Outlook ne marche pas : la marche à suivre devient l'action principale.
   const webSummary = phone ? 'Ou ajoute-le à la main' : 'Le bouton ne marche pas ?';
@@ -173,19 +170,7 @@ export function FeedReady({ pageUrl, feedUrl, onBack, onEdit, updated = false }:
 
       {showAdd && (
         <>
-          <div className="feed-ready__apps">
-            {CALENDAR_APPS.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                className={entry.id === app ? 'feed-ready__app feed-ready__app--active' : 'feed-ready__app'}
-                aria-pressed={entry.id === app}
-                onClick={() => setApp(entry.id)}
-              >
-                {entry.label}
-              </button>
-            ))}
-          </div>
+          <CalendarAppTabs value={app} onChange={setApp} />
 
           {app === 'apple' && (
             <div className="feed-ready__panel">
@@ -241,6 +226,16 @@ export function FeedReady({ pageUrl, feedUrl, onBack, onEdit, updated = false }:
           <AddToHomeScreen />
         </div>
       </div>
+
+      {/* Tout en bas, hors du chemin : on ne doit pas tomber dessus par erreur. */}
+      {onDelete && (
+        <button className="feed-ready__delete" type="button" onClick={() => setConfirmingDelete(true)}>
+          Supprimer mon calendrier
+        </button>
+      )}
+      {onDelete && confirmingDelete && (
+        <DeleteSubscriptionModal onConfirm={onDelete} onClose={() => setConfirmingDelete(false)} />
+      )}
     </div>
   );
 }

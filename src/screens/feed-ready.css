@@ -23,31 +23,11 @@
 }
 
 /* Même allure que « Le bouton ne marche pas ? » : un lien discret, pas un bouton de plus. */
-.feed-ready__reveal {
+.feed-ready__reveal,
+.feed-ready__delete {
   color: var(--transparent-white-50);
   font-size: 14px;
   text-decoration: underline;
-}
-
-/* --- Choix de l’application de calendrier --- */
-
-.feed-ready__apps {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-2);
-}
-
-.feed-ready__app {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--transparent-white-20);
-  color: var(--white);
-  font-size: 16px;
-}
-
-.feed-ready__app--active {
-  background: var(--white);
-  color: var(--background-dark);
 }
 
 /* --- Ajout au calendrier (un panneau par application) --- */
@@ -200,4 +180,10 @@
 
 .feed-ready__status--visible {
   display: block;
+}
+
+/* --- Suppression du calendrier (page de l'élève) --- */
+
+.feed-ready__delete {
+  margin-top: var(--space-2);
 }
