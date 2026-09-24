@@ -120,6 +120,7 @@ npm run dev
 | `POST /api/subscription` | Corps `{ promotions: [{ label, checked[], unchecked[] }] }` (clés de matière) → `{ token }` | 400 si la sélection est invalide ; 404 si une promotion est inconnue |
 | `GET /api/subscription?token=…` | `{ promotions: [{ label, mode, keys[] }] }` : la sélection enregistrée, recochée quand l'élève la modifie (sans les promotions sorties de l'index) | 400 sans jeton ; 404 si l'abonnement n'existe pas |
 | `PUT /api/subscription?token=…` | Même corps que le POST → `{ ok }` : remplace la sélection, même jeton | Mêmes erreurs que POST et GET |
+| `DELETE /api/subscription?token=…` | `{ ok }` : efface la sélection ; pendant 7 jours, le flux sert un calendrier vide, puis la clé expire | 400 sans jeton ; 404 si l'abonnement n'existe pas ou est déjà supprimé |
 | `GET /f/<jeton>` (`/api/feed?token=…`) | Flux ICS (`text/calendar`), aussi en `HEAD` | 400 sans jeton ; 404 si l'abonnement n'existe pas |
 | `GET /api/manifest?token=…` | Manifest de l'app qui s'ouvre sur `/m/<jeton>` (icône d'écran d'accueil) | 400 si le jeton est mal formé |
 

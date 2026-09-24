@@ -4,6 +4,7 @@
 // revient la modifier) ; 404 si l'abonnement n'existe pas.
 // PUT /api/subscription?token=… : remplace la sélection d'un abonnement existant : même jeton, donc même flux,
 // sans doublon dans le calendrier de l'élève.
+// DELETE /api/subscription?token=… : efface la sélection (voir deleteSubscription).
 // La logique est ici ; api/subscription.mjs ne fait que la brancher sur Redis.
 //
 // Ce qui est stocké : par promotion, un mode et des clés de matière (voir shared/course-key.mjs), jamais les
@@ -18,6 +19,9 @@ import { validatePromotionLabels } from './lessons.mjs';
 
 const MAX_KEYS = 200;
 const MAX_KEY_LENGTH = 200;
+// Après une suppression, le flux sert un calendrier vide pendant ce délai, puis Redis efface la clé : assez long
+// pour que toute application se rafraîchisse (Google Agenda peut mettre plus d'une journée).
+export const DELETED_FEED_SECONDS = 7 * 24 * 60 * 60;
 
 function validateKeys(keys) {
   if (!Array.isArray(keys)) throw new HttpError(400, 'Sélection invalide');
@@ -102,13 +106,17 @@ function tokenFrom(url) {
   return token;
 }
 
-// L'abonnement désigné par le paramètre `token` de l'URL ; 404 s'il n'existe pas.
-export async function findSubscription(redis, url) {
+// L'abonnement désigné par le paramètre `token` de l'URL ; 404 s'il n'existe pas ou s'il a été supprimé.
+// Seul le flux lit un abonnement supprimé (`includeDeleted`), pour servir un calendrier vide.
+export async function findSubscription(redis, url, { includeDeleted = false } = {}) {
   const token = tokenFrom(url);
   const subscription = await redis.getJson(subscriptionKey(hashToken(token)));
-  if (!subscription) throw new HttpError(404, 'Abonnement inconnu');
+  if (!subscription || (isDeleted(subscription) && !includeDeleted)) throw new HttpError(404, 'Abonnement inconnu');
   return { token, subscription };
 }
+
+// Un abonnement supprimé ne garde que sa date de suppression.
+export const isDeleted = (subscription) => 'deletedAt' in subscription;
 
 async function readSelection(redis, request) {
   const selection = parseSelection(await readJsonBody(request));
@@ -140,5 +148,15 @@ export async function updateSubscription(redis, request, now = new Date()) {
     createdAt: subscription.createdAt,
     updatedAt: now.toISOString(),
   });
+  return jsonNoStore({ ok: true });
+}
+
+// L'élève supprime son calendrier depuis sa page. Promotions, cours et dates sont effacés tout de suite ; il ne reste
+// que la date de suppression, que Redis efface après DELETED_FEED_SECONDS. D'ici là, le flux sert un calendrier
+// vide : les cours disparaissent de l'application de l'élève à son prochain rafraîchissement, même s'il n'y retire
+// pas l'abonnement.
+export async function deleteSubscription(redis, request, now = new Date()) {
+  const { token } = await findSubscription(redis, new URL(request.url));
+  await redis.setJson(subscriptionKey(hashToken(token)), { deletedAt: now.toISOString() }, DELETED_FEED_SECONDS);
   return jsonNoStore({ ok: true });
 }

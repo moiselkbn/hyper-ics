@@ -1,15 +1,16 @@
 // GET /api/feed?token=… (adresse publique : /f/<jeton>, voir vercel.json) : flux ICS de l'abonnement d'un élève.
 // Recalculé à chaque lecture à partir du dernier scrap : nouvelles semaines, changements d'horaire ou de salle
-// arrivent au prochain rafraîchissement du calendrier de l'élève.
+// arrivent au prochain rafraîchissement du calendrier de l'élève. Un abonnement supprimé sert un calendrier vide.
 // La logique est ici ; api/feed.mjs ne fait que la brancher sur Redis.
 import { scheduleKey } from '../shared/redis-keys.mjs';
 import { icsResponse } from './http.mjs';
 import { buildIcs } from './ics.mjs';
 import { buildDetailedLessons } from './lessons.mjs';
-import { findSubscription, isLessonFollowed } from './subscription.mjs';
+import { findSubscription, isDeleted, isLessonFollowed } from './subscription.mjs';
 
 export async function getFeedIcs(redis, url, now = new Date()) {
-  const { subscription } = await findSubscription(redis, url);
+  const { subscription } = await findSubscription(redis, url, { includeDeleted: true });
+  if (isDeleted(subscription)) return icsResponse(buildIcs([], null, [], now));
   const labels = subscription.promotions.map((entry) => entry.label);
   // Une promotion peut disparaître de Redis entre-temps (sortie du périmètre, renommée) : on l'ignore plutôt que
   // de faire échouer tout le flux de l'élève.

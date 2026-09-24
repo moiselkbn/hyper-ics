@@ -6,6 +6,8 @@ import { generateToken, hashToken } from '../shared/token.mjs';
 import {
   chooseModes,
   createSubscription,
+  DELETED_FEED_SECONDS,
+  deleteSubscription,
   getSubscription,
   isLessonFollowed,
   parseSelection,
@@ -16,11 +18,18 @@ const NOW = new Date('2026-09-24T10:00:00.000Z');
 const LATER = new Date('2026-09-25T08:00:00.000Z');
 
 // Base en mémoire : mêmes méthodes que le vrai client (shared/redis-client.mjs), rien de plus.
+// `expiries` garde le délai demandé pour chaque clé écrite avec une expiration.
 function inMemoryRedis(seed = {}) {
   const store = new Map(Object.entries(seed).map(([key, value]) => [key, JSON.stringify(value)]));
+  const expiries = new Map();
   return {
     store,
-    setJson: async (key, value) => store.set(key, JSON.stringify(value)),
+    expiries,
+    setJson: async (key, value, expiresInSeconds) => {
+      store.set(key, JSON.stringify(value));
+      if (expiresInSeconds) expiries.set(key, expiresInSeconds);
+      else expiries.delete(key);
+    },
     getJson: async (key) => (store.has(key) ? JSON.parse(store.get(key)) : null),
   };
 }
@@ -28,6 +37,7 @@ function inMemoryRedis(seed = {}) {
 const index = (...labels) => ({ [SCHEDULE_INDEX_KEY]: { promotions: labels.map((label) => ({ label })) } });
 const post = (body) => ({ url: 'http://localhost/api/subscription', json: async () => body });
 const put = (token, body) => ({ url: `http://localhost/api/subscription?token=${token}`, json: async () => body });
+const del = (query) => ({ url: `http://localhost/api/subscription${query}` });
 const entry = (label, checked = [], unchecked = []) => ({ label, checked, unchecked });
 
 // --- Validation du corps
@@ -214,5 +224,40 @@ test('updateSubscription remplace la sélection sous le même jeton et garde la 
 test('updateSubscription répond 404 pour un jeton inconnu, sans rien écrire', async () => {
   const redis = inMemoryRedis(index('3TI Web'));
   await assert.rejects(updateSubscription(redis, put(generateToken(), { promotions: [entry('3TI Web')] })), { status: 404 });
+  assert.equal(redis.store.size, 1);
+});
+
+// --- Suppression
+
+test('deleteSubscription efface la sélection et les dates, ne garde que la date de suppression, 7 jours', async () => {
+  const redis = inMemoryRedis(index('3TI Web'));
+  const { token } = await (await createSubscription(redis, post({ promotions: [entry('3TI Web', ['a'], ['b'])] }), NOW)).json();
+  const key = subscriptionKey(hashToken(token));
+
+  const response = await deleteSubscription(redis, del(`?token=${token}`), LATER);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.equal(redis.store.size, 2); // l'index et la même clé, rien d'autre
+  assert.deepEqual(JSON.parse(redis.store.get(key)), { deletedAt: LATER.toISOString() });
+  assert.equal(redis.expiries.get(key), DELETED_FEED_SECONDS);
+  assert.equal(DELETED_FEED_SECONDS, 7 * 24 * 60 * 60);
+});
+
+test('un abonnement supprimé ne se lit, ne se modifie ni ne se supprime plus', async () => {
+  const redis = inMemoryRedis(index('3TI Web'));
+  const { token } = await (await createSubscription(redis, post({ promotions: [entry('3TI Web', ['a'])] }))).json();
+  await deleteSubscription(redis, del(`?token=${token}`));
+  const stored = redis.store.get(subscriptionKey(hashToken(token)));
+
+  await assert.rejects(getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`)), { status: 404 });
+  await assert.rejects(updateSubscription(redis, put(token, { promotions: [entry('3TI Web', ['a'])] })), { status: 404 });
+  await assert.rejects(deleteSubscription(redis, del(`?token=${token}`)), { status: 404 });
+  assert.equal(redis.store.get(subscriptionKey(hashToken(token))), stored); // rien de réécrit
+});
+
+test('deleteSubscription répond 400 sans jeton et 404 pour un jeton inconnu, sans rien écrire', async () => {
+  const redis = inMemoryRedis(index('3TI Web'));
+  await assert.rejects(deleteSubscription(redis, del('')), { status: 400 });
+  await assert.rejects(deleteSubscription(redis, del(`?token=${generateToken()}`)), { status: 404 });
   assert.equal(redis.store.size, 1);
 });

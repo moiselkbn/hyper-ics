@@ -5,7 +5,7 @@ import { courseKey } from '../shared/course-key.mjs';
 import { SCHEDULE_INDEX_KEY, scheduleKey } from '../shared/redis-keys.mjs';
 import { generateToken } from '../shared/token.mjs';
 import { getFeedIcs } from './feed.mjs';
-import { createSubscription } from './subscription.mjs';
+import { createSubscription, deleteSubscription } from './subscription.mjs';
 
 // Un créneau tel que l'écrit le scrap (voir lessons.test.mjs pour le même fixture).
 const slot = ({ subject, code = null, teachers = [], day = 0, start = '09:00', end = '11:00', weeks = [1] }) => ({
@@ -36,6 +36,7 @@ function inMemoryRedis(records) {
   ]);
   return {
     store,
+    // Le délai d'expiration (suppression) n'a pas d'effet ici : les tests lisent la clé avant qu'elle expire.
     setJson: async (key, value) => store.set(key, JSON.stringify(value)),
     getJson: async (key) => (store.has(key) ? JSON.parse(store.get(key)) : null),
     mgetJson: async (keys) => keys.map((key) => (store.has(key) ? JSON.parse(store.get(key)) : null)),
@@ -172,4 +173,16 @@ test('getFeedIcs ignore une promotion qui aurait disparu de Redis entre-temps', 
   const ics = await feedOf(redis, token);
   // Une seule promotion restante : plus de précision de promotion.
   assert.deepEqual(summaries(ics), ['Tissage']);
+});
+
+test('après suppression, le flux sert un calendrier valide mais vide, pour vider celui de l’élève', async () => {
+  const redis = inMemoryRedis([record('1AT', [slot({ subject: 'Tissage', code: 'TIS-1' })])]);
+  const token = await subscribe(redis, [{ label: '1AT', checked: [courseKey('Tissage')], unchecked: [] }]);
+  assert.deepEqual(summaries(await feedOf(redis, token)), ['Tissage']);
+
+  await deleteSubscription(redis, { url: `http://localhost/api/subscription?token=${token}` });
+  const ics = await feedOf(redis, token);
+  assert.match(ics, /^BEGIN:VCALENDAR\r\n/);
+  assert.match(ics, /END:VCALENDAR\r\n$/);
+  assert.doesNotMatch(ics, /BEGIN:VEVENT/);
 });
