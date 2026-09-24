@@ -10,14 +10,16 @@ type ClassChoiceProps = {
   curricula: Curriculum[];
   selected: ReadonlySet<string>;
   onToggle: (promotion: string, checked: boolean) => void;
+  // Modification depuis la page de l'élève : y revenir sans rien enregistrer.
+  onBack?: () => void;
   onNext: () => void;
 };
 
 // Étape 1 : choix des promotions suivies (deux années différentes au maximum, décret paysage).
-export function ClassChoice({ curricula, selected, onToggle, onNext }: ClassChoiceProps) {
+export function ClassChoice({ curricula, selected, onToggle, onBack, onNext }: ClassChoiceProps) {
   return (
     <div className="class-choice">
-      <AppHeader />
+      <AppHeader onBack={onBack} />
       <Stepper total={4} current={1} />
       <StepTitle step={1}>Dans quelles classes es-tu ?</StepTitle>
       <div className="class-choice__curricula">

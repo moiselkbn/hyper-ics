@@ -16,31 +16,68 @@
   letter-spacing: -0.04em;
 }
 
-/* --- Choix de la plateforme --- */
+/* --- Après une modification de la sélection --- */
 
-.feed-ready__platforms {
+.feed-ready__updated {
+  margin: 0;
+}
+
+/* Même allure que « Le bouton ne marche pas ? » : un lien discret, pas un bouton de plus. */
+.feed-ready__reveal,
+.feed-ready__delete {
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+/* --- Ajout au calendrier (un panneau par application) --- */
+
+.feed-ready__panel {
   display: flex;
-  justify-content: center;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: var(--space-1);
 }
-
-.feed-ready__platform {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--transparent-white-20);
-  color: var(--white);
-  font-size: 16px;
-}
-
-.feed-ready__platform--active {
-  background: var(--white);
-  color: var(--background-dark);
-}
-
-/* --- Ajout au calendrier --- */
 
 .feed-ready__add {
   gap: 10px;
+}
+
+.feed-ready__hint {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Marche à suivre à la main, repliée par défaut : le bouton suffit dans la plupart des cas.
+   Pas de flex sur <details> lui-même : Safari l'ignore, d'où le conteneur __help-body. */
+.feed-ready__help[open] {
+  padding: var(--space-2);
+  border-radius: var(--space-2);
+  background: var(--transparent-white-20);
+}
+
+.feed-ready__help-summary {
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  text-align: center;
+  text-decoration: underline;
+  cursor: pointer;
+  list-style: none;
+}
+
+.feed-ready__help-summary::-webkit-details-marker {
+  display: none;
+}
+
+.feed-ready__help[open] > .feed-ready__help-summary {
+  color: var(--white);
+  text-align: left;
+}
+
+.feed-ready__help-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
 }
 
 /* --- Garder la page (lien + partage + écran d'accueil) --- */
@@ -143,4 +180,10 @@
 
 .feed-ready__status--visible {
   display: block;
+}
+
+/* --- Suppression du calendrier (page de l'élève) --- */
+
+.feed-ready__delete {
+  margin-top: var(--space-2);
 }

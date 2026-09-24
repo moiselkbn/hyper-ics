@@ -1,0 +1,62 @@
+/* Même fenêtre que le signalement de bug (bug-report-modal.css). */
+.delete-subscription-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.delete-subscription-modal__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--transparent-white-20);
+  border-radius: var(--radius-chip);
+  background: var(--background-dark);
+}
+
+.delete-subscription-modal__title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.delete-subscription-modal__text {
+  margin: 0;
+  font-size: 14px;
+}
+
+.delete-subscription-modal__error {
+  margin: 0;
+  color: var(--calendar-pink);
+  font-size: 14px;
+}
+
+.delete-subscription-modal__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.delete-subscription-modal__cancel,
+.delete-subscription-modal__confirm {
+  width: 50%;
+  text-align: center;
+}
+
+.delete-subscription-modal__cancel {
+  padding: var(--space-2);
+  color: var(--transparent-white-50);
+}
+
+/* Action destructive : la couleur d'alerte de la maquette, pas le jaune des actions principales. */
+.delete-subscription-modal__confirm {
+  background: var(--calendar-pink);
+  color: var(--white);
+}

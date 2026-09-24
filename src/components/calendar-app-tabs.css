@@ -1,0 +1,18 @@
+.calendar-app-tabs {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.calendar-app-tabs__tab {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--transparent-white-20);
+  color: var(--white);
+  font-size: 16px;
+}
+
+.calendar-app-tabs__tab--active {
+  background: var(--white);
+  color: var(--background-dark);
+}

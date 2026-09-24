@@ -13,6 +13,11 @@ export function parsePromotions(searchParams) {
     .split(',')
     .map((label) => label.trim())
     .filter(Boolean);
+  return validatePromotionLabels(labels);
+}
+
+// Mêmes règles que parsePromotions, mais pour un tableau déjà découpé (ex. le corps JSON de POST /api/subscription).
+export function validatePromotionLabels(labels) {
   const unique = [...new Set(labels)];
   if (unique.length === 0) throw new HttpError(400, 'Paramètre promotions manquant');
   if (unique.length > MAX_PROMOTIONS) throw new HttpError(400, `${MAX_PROMOTIONS} promotions au maximum`);
@@ -23,20 +28,55 @@ export function parsePromotions(searchParams) {
 // Dans une promotion, un cours = sa matière (la clé de cours, voir shared/course-key.mjs), quel que soit
 // le nombre d'occurrences par semaine. On garde le premier code rencontré, sans espaces autour.
 // `occurrences` liste les moments où il a lieu : « semaine|jour|début|fin ».
+// `roomsByOccurrence` associe à chaque occurrence ses salles (une occurrence peut en avoir plusieurs,
+// ou aucune) : la salle n'entre pas dans la clé d'occurrence, qui ne sert qu'à repérer un même moment.
+// `teachersByOccurrence` fait de même pour les profs : un cours peut avoir un prof différent selon le
+// jour (ex. Lemal le lundi, Jamoulle le vendredi) ; `teachers` (à plat, tous profs confondus) reste
+// utile pour le résumé affiché avant le choix d'une date précise (écrans de sélection des cours).
 function coursesOfPromotion(record) {
   const courses = new Map();
   for (const slot of record.courses) {
     if (!slot.key) continue; // sans matière : impossible à identifier, donc à filtrer
     let course = courses.get(slot.key);
     if (!course) {
-      course = { key: slot.key, subject: slot.subject.trim(), code: null, teachers: [], occurrences: new Set() };
+      course = {
+        key: slot.key,
+        subject: slot.subject.trim(),
+        code: null,
+        teachers: [],
+        occurrences: new Set(),
+        roomsByOccurrence: new Map(),
+        teachersByOccurrence: new Map(),
+      };
       courses.set(slot.key, course);
     }
     course.code ??= slot.code?.trim() || null;
     for (const teacher of slot.teachers) {
       if (!course.teachers.includes(teacher)) course.teachers.push(teacher);
     }
-    for (const week of slot.weeks) course.occurrences.add(`${week}|${slot.day}|${slot.start}|${slot.end}`);
+    for (const week of slot.weeks) {
+      const occurrence = `${week}|${slot.day}|${slot.start}|${slot.end}`;
+      course.occurrences.add(occurrence);
+      // `roomsByWeek` : salle résolue semaine par semaine quand elle change en cours d'année
+      // (scraper/resolve-rooms.mjs). Sans lui, la même salle s'applique à toutes les semaines du créneau.
+      const weekRooms = slot.roomsByWeek ? (slot.roomsByWeek[week] ?? []) : slot.rooms;
+      if (weekRooms.length > 0) {
+        let rooms = course.roomsByOccurrence.get(occurrence);
+        if (!rooms) {
+          rooms = new Set();
+          course.roomsByOccurrence.set(occurrence, rooms);
+        }
+        for (const room of weekRooms) rooms.add(room);
+      }
+      if (slot.teachers.length > 0) {
+        let teachers = course.teachersByOccurrence.get(occurrence);
+        if (!teachers) {
+          teachers = new Set();
+          course.teachersByOccurrence.set(occurrence, teachers);
+        }
+        for (const teacher of slot.teachers) teachers.add(teacher);
+      }
+    }
   }
   return [...courses.values()];
 }
@@ -51,6 +91,8 @@ const newLesson = (id, course, promotion) => ({
   mandatory: course.code === null,
   promotions: [promotion],
   occurrences: new Set(course.occurrences),
+  roomsByOccurrence: new Map([...course.roomsByOccurrence].map(([occurrence, rooms]) => [occurrence, new Set(rooms)])),
+  teachersByOccurrence: new Map([...course.teachersByOccurrence].map(([occurrence, teachers]) => [occurrence, new Set(teachers)])),
 });
 
 // Fond `source` dans `target` ; l'identifiant retenu est le plus petit, pour ne pas dépendre de l'ordre des promotions.
@@ -66,6 +108,22 @@ function absorb(target, source) {
     if (!target.teachers.includes(teacher)) target.teachers.push(teacher);
   }
   for (const occurrence of source.occurrences) target.occurrences.add(occurrence);
+  for (const [occurrence, rooms] of source.roomsByOccurrence) {
+    let targetRooms = target.roomsByOccurrence.get(occurrence);
+    if (!targetRooms) {
+      targetRooms = new Set();
+      target.roomsByOccurrence.set(occurrence, targetRooms);
+    }
+    for (const room of rooms) targetRooms.add(room);
+  }
+  for (const [occurrence, teachers] of source.teachersByOccurrence) {
+    let targetTeachers = target.teachersByOccurrence.get(occurrence);
+    if (!targetTeachers) {
+      targetTeachers = new Set();
+      target.teachersByOccurrence.set(occurrence, targetTeachers);
+    }
+    for (const teacher of teachers) targetTeachers.add(teacher);
+  }
 }
 
 const shareOccurrence = (a, b) => [...a].some((occurrence) => b.has(occurrence));
@@ -97,7 +155,7 @@ function mergeSimultaneous(lessons) {
 //  1. même code ET même matière (jamais de fausse fusion : un code peut couvrir deux matières) ;
 //  2. même matière au même moment (voir mergeSimultaneous), qui règle les cours sans code.
 // Le reste est laissé séparé, même à matière identique : ce sont deux cours distincts (autres moments, autres codes).
-export function buildLessons(records) {
+function mergeLessonsFromRecords(records) {
   const byCode = new Map();
   for (const record of records) {
     for (const course of coursesOfPromotion(record)) {
@@ -107,15 +165,23 @@ export function buildLessons(records) {
       else byCode.set(id, lesson);
     }
   }
+  return mergeSimultaneous([...byCode.values()].sort((a, b) => (a.id < b.id ? -1 : 1)));
+}
 
-  const merged = mergeSimultaneous([...byCode.values()].sort((a, b) => (a.id < b.id ? -1 : 1)));
+// La plus ancienne des dates de scrap : c'est la fraîcheur garantie de la réponse.
+const freshnessOf = (records) => records.map((record) => record.scrapedAt).sort()[0] ?? null;
+
+export function buildLessons(records) {
+  const merged = mergeLessonsFromRecords(records);
   const order = new Map(records.map((record, index) => [record.promotion, index]));
   return {
-    // La plus ancienne des dates de scrap : c'est la fraîcheur garantie de la réponse.
-    updatedAt: records.map((record) => record.scrapedAt).sort()[0] ?? null,
+    updatedAt: freshnessOf(records),
     lessons: merged
-      .map(({ id, subject, code, teachers, mandatory, promotions }) => ({
+      // `key` (la matière normalisée) identifie le cours dans chacune de ses promotions, même si son code change :
+      // c'est ce que l'abonnement enregistre (voir server/subscription.mjs), pas `id`.
+      .map(({ id, key, subject, code, teachers, mandatory, promotions }) => ({
         id,
+        key,
         subject,
         code,
         teachers,
@@ -124,6 +190,20 @@ export function buildLessons(records) {
       }))
       .sort((a, b) => promotionCollator.compare(a.subject, b.subject) || promotionCollator.compare(a.id, b.id)),
   };
+}
+
+// Comme buildLessons, mais garde les occurrences (« semaine|jour|début|fin ») et leurs salles/profs, que
+// l'API publique n'expose pas : c'est ce dont le flux ICS a besoin pour placer les événements dans le
+// temps et renseigner leur lieu et leur(s) prof(s) exacts, occurrence par occurrence.
+export function buildDetailedLessons(records) {
+  return mergeLessonsFromRecords(records).map((lesson) => ({
+    ...lesson,
+    occurrences: [...lesson.occurrences],
+    roomsByOccurrence: Object.fromEntries([...lesson.roomsByOccurrence].map(([occurrence, rooms]) => [occurrence, [...rooms]])),
+    teachersByOccurrence: Object.fromEntries(
+      [...lesson.teachersByOccurrence].map(([occurrence, teachers]) => [occurrence, [...teachers]]),
+    ),
+  }));
 }
 
 export async function getLessons(redis, url) {

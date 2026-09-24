@@ -90,3 +90,9 @@ test("refuse de démarrer sans adresse ni jeton", () => {
   assert.throws(() => createRedisClient({ url: undefined, token: undefined }), /UPSTASH_REDIS_REST_URL/);
   assert.throws(() => createRedisClient({ url: URL, token: '' }), /UPSTASH_REDIS_REST_TOKEN/);
 });
+
+test('setJson avec un délai demande à Redis d’effacer la clé ensuite', async () => {
+  const { client, calls } = clientWith({ result: 'OK' });
+  await client.setJson('k', { a: 1 }, 604800);
+  assert.deepEqual(calls[0].sent, ['SET', 'k', '{"a":1}', 'EX', 604800]);
+});

@@ -38,7 +38,11 @@ export function createRedisClient({
 
     // Toutes les valeurs du modèle sont du JSON stocké sous forme de texte.
     getJson: async (key) => parseJson(await command('GET', key)),
-    setJson: (key, value) => command('SET', key, JSON.stringify(value)),
+    // `expiresInSeconds` : Redis efface la clé tout seul après ce délai (SET … EX).
+    setJson: (key, value, expiresInSeconds) =>
+      expiresInSeconds
+        ? command('SET', key, JSON.stringify(value), 'EX', expiresInSeconds)
+        : command('SET', key, JSON.stringify(value)),
     mgetJson: async (keys) => (keys.length === 0 ? [] : (await command('MGET', ...keys)).map(parseJson)),
   };
 }
