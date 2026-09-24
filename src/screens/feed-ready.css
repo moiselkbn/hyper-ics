@@ -16,15 +16,15 @@
   letter-spacing: -0.04em;
 }
 
-/* --- Choix de la plateforme --- */
+/* --- Choix de l’application de calendrier --- */
 
-.feed-ready__platforms {
+.feed-ready__apps {
   display: flex;
   justify-content: center;
   gap: var(--space-2);
 }
 
-.feed-ready__platform {
+.feed-ready__app {
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--transparent-white-20);
@@ -32,12 +32,12 @@
   font-size: 16px;
 }
 
-.feed-ready__platform--active {
+.feed-ready__app--active {
   background: var(--white);
   color: var(--background-dark);
 }
 
-/* --- Ajout au calendrier (un panneau par plateforme) --- */
+/* --- Ajout au calendrier (un panneau par application) --- */
 
 .feed-ready__panel {
   display: flex;
