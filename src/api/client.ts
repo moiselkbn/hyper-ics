@@ -1,5 +1,5 @@
 import type { Curriculum } from '../data/curricula';
-import type { Lesson, SubscriptionPromotion } from '../data/lessons';
+import type { Lesson, StoredPromotion, SubscriptionPromotion } from '../data/lessons';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -49,12 +49,14 @@ export async function updateSubscription(
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
-// false : aucun abonnement pour ce jeton (lien mal copié, par exemple).
-export async function subscriptionExists(token: string, signal: AbortSignal): Promise<boolean> {
+// Sélection enregistrée d'un abonnement, recochée quand l'élève revient la modifier.
+// null : aucun abonnement pour ce jeton (lien mal copié, par exemple).
+export async function fetchSubscription(token: string, signal: AbortSignal): Promise<StoredPromotion[] | null> {
   const response = await fetch(`/api/subscription?${new URLSearchParams({ token })}`, { signal });
-  if (response.status === 404) return false;
+  if (response.status === 404) return null;
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return true;
+  const { promotions } = (await response.json()) as { promotions: StoredPromotion[] };
+  return promotions;
 }
 
 export async function reportBug(description: string, signal: AbortSignal): Promise<void> {

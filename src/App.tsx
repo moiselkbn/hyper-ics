@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createSubscription, fetchCurricula, fetchLessons, subscriptionExists, updateSubscription } from './api/client';
+import { createSubscription, fetchCurricula, fetchLessons, fetchSubscription, updateSubscription } from './api/client';
 import { useRemote } from './api/use-remote';
 import { StatusScreen } from './components/status-screen';
 import { isPromotionDisabled, type Curriculum } from './data/curricula';
-import { getDefaultLessonIds, toSubscriptionPromotions, type Lesson } from './data/lessons';
+import {
+  getDefaultLessonIds,
+  getFollowedLessonIds,
+  toSubscriptionPromotions,
+  type Lesson,
+  type StoredPromotion,
+} from './data/lessons';
 import { feedUrl, leavePage, pageTokenOf, pageUrl, showPage } from './data/subscription-links';
 import { ClassChoice } from './screens/class-choice';
 import { FeedReady } from './screens/feed-ready';
@@ -22,10 +28,12 @@ export function App() {
   const [selectedLessons, setSelectedLessons] = useState<ReadonlySet<string>>(new Set());
   const [curricula, loadCurricula] = useRemote<Curriculum[]>();
   const [lessons, loadLessons] = useRemote<Lesson[]>();
-  const [opened, loadOpened] = useRemote<boolean>();
+  // Sélection enregistrée de la page ouverte depuis son lien ; null si le lien ne correspond à aucun abonnement.
+  const [opened, loadOpened] = useRemote<StoredPromotion[] | null>();
   const [saved, loadSaved] = useRemote<string>();
-  // Jeton de l'abonnement créé pendant cette visite. Il survit à un échec d'enregistrement : la tentative
-  // suivante met à jour ce même abonnement au lieu d'en créer un second, que l'élève aurait pu ajouter en double.
+  // Jeton de l'abonnement créé pendant cette visite, ou de celui que l'élève modifie depuis sa page. Il survit à un
+  // échec d'enregistrement : la tentative suivante met à jour ce même abonnement au lieu d'en créer un second, que
+  // l'élève aurait pu ajouter en double.
   const [token, setToken] = useState<string | null>(null);
   // Sélection enregistrée dans l'abonnement : au retour sur le récapitulatif, sert à savoir si l'élève a changé
   // d'avis (comparaison par référence, les deux Set ne changent que via un toggle).
@@ -36,6 +44,8 @@ export function App() {
 
   // Les écrans après le choix des cours ne s'ouvrent qu'une fois ceux-ci chargés.
   const loadedLessons = lessons.status === 'ready' ? lessons.data : [];
+  // L'élève modifie, depuis sa page, un abonnement qui existe déjà (voir requestEdit).
+  const editing = openedToken !== null && token === openedToken;
 
   // Les promotions se chargent dès l'accueil : elles sont prêtes quand l'élève arrive à l'étape 1.
   useEffect(() => {
@@ -46,20 +56,50 @@ export function App() {
   const requestOpened = useCallback(() => {
     if (!openedToken) return;
     loadOpened(
-      (signal) => subscriptionExists(openedToken, signal),
-      (exists) => {
-        if (exists) showPage(openedToken);
+      (signal) => fetchSubscription(openedToken, signal),
+      (stored) => {
+        if (stored) showPage(openedToken);
       },
     );
   }, [openedToken, loadOpened]);
 
   useEffect(requestOpened, [requestOpened]);
 
-  function requestLessons() {
+  // Cours des promotions choisies, cochés d'après la sélection enregistrée en modification ; sinon préréglage,
+  // tous les cours des promotions choisies.
+  function loadLessonsOf(promotions: ReadonlySet<string>, stored: StoredPromotion[] | null) {
     loadLessons(
-      (signal) => fetchLessons([...selected], signal),
-      // Préréglage : tous les cours des promotions choisies.
-      (data) => setSelectedLessons(getDefaultLessonIds(data, selected)),
+      (signal) => fetchLessons([...promotions], signal),
+      (data) =>
+        setSelectedLessons(stored ? getFollowedLessonIds(data, promotions, stored) : getDefaultLessonIds(data, promotions)),
+    );
+  }
+
+  function requestLessons() {
+    loadLessonsOf(selected, editing && opened.status === 'ready' ? opened.data : null);
+  }
+
+  // « Modifier », depuis la page de l'élève : sa sélection est relue sur le serveur (elle a pu changer depuis un
+  // autre appareil), puis recochée. Son jeton est repris : la validation mettra à jour ce même abonnement, sous le
+  // même lien, au lieu d'en créer un second qu'il aurait en double dans son calendrier.
+  function requestEdit() {
+    if (!openedToken) return;
+    setScreen('page');
+    loadOpened(
+      (signal) => fetchSubscription(openedToken, signal),
+      (stored) => {
+        if (!stored) return;
+        const promotions = new Set(stored.map((entry) => entry.label));
+        setToken(openedToken);
+        setSelected(promotions);
+        // Toutes ses promotions sont sorties du périmètre depuis : il en choisit d'autres.
+        if (promotions.size === 0) {
+          setScreen('class-choice');
+          return;
+        }
+        loadLessonsOf(promotions, stored);
+        setScreen('lesson-choice');
+      },
     );
   }
 
@@ -118,7 +158,7 @@ export function App() {
         />
       );
     }
-    return <FeedReady pageUrl={pageUrl(openedToken)} feedUrl={feedUrl(openedToken)} />;
+    return <FeedReady pageUrl={pageUrl(openedToken)} feedUrl={feedUrl(openedToken)} onEdit={requestEdit} />;
   }
 
   if (screen === 'landing') {
@@ -134,6 +174,7 @@ export function App() {
         curricula={curricula.data}
         selected={selected}
         onToggle={togglePromotion}
+        onBack={editing ? () => setScreen('page') : undefined}
         onNext={() => {
           requestLessons();
           setScreen('lesson-choice');
@@ -165,6 +206,7 @@ export function App() {
         promotions={[...selected]}
         lessons={loadedLessons}
         selected={selectedLessons}
+        editing={editing}
         onBack={() => setScreen('lesson-choice')}
         onNext={() => {
           // Sélection inchangée depuis le dernier enregistrement : inutile de rejouer l'animation.
@@ -178,7 +220,8 @@ export function App() {
             return;
           }
           requestSave();
-          setScreen('generation');
+          // Un calendrier qui existe déjà est seulement mis à jour : pas d'animation de génération.
+          setScreen(editing ? 'feed-ready' : 'generation');
         }}
       />
     );
@@ -197,6 +240,10 @@ export function App() {
 
   if (saved.status !== 'ready') {
     return <StatusScreen status={saved.status} onRetry={requestSave} onBack={() => setScreen('selection-review')} />;
+  }
+  // Modification enregistrée : l'élève retrouve sa page, avec la confirmation.
+  if (editing) {
+    return <FeedReady pageUrl={pageUrl(saved.data)} feedUrl={feedUrl(saved.data)} onEdit={requestEdit} updated />;
   }
   return (
     <FeedReady

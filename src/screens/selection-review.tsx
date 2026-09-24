@@ -9,12 +9,14 @@ type SelectionReviewProps = {
   promotions: string[];
   lessons: Lesson[];
   selected: ReadonlySet<string>;
+  // Modification depuis la page de l'élève : son calendrier existe déjà, il est mis à jour.
+  editing?: boolean;
   onBack: () => void;
   onNext: () => void;
 };
 
-// Étape 3 : récapitulatif des cours retenus avant de générer le calendrier.
-export function SelectionReview({ promotions, lessons, selected, onBack, onNext }: SelectionReviewProps) {
+// Étape 3 : récapitulatif des cours retenus avant de générer (ou de mettre à jour) le calendrier.
+export function SelectionReview({ promotions, lessons, selected, editing = false, onBack, onNext }: SelectionReviewProps) {
   // Les cours obligatoires restent dans le calendrier mais ne sont pas listés : l'élève ne les a pas choisis.
   const selectedLessons = getSelectableLessons(lessons).filter((lesson) => selected.has(lesson.id));
 
@@ -45,7 +47,7 @@ export function SelectionReview({ promotions, lessons, selected, onBack, onNext 
       </section>
       <div className="selection-review__footer">
         <Button variant="accent" disabled={selected.size === 0} onClick={onNext}>
-          Générer le calendrier
+          {editing ? 'Mettre à jour le calendrier' : 'Générer le calendrier'}
         </Button>
       </div>
     </div>

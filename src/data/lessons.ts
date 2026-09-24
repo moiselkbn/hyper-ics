@@ -57,3 +57,31 @@ export function getDefaultLessonIds(lessons: Lesson[], promotions: ReadonlySet<s
     lessons.filter((lesson) => lesson.promotions.some((promotion) => promotions.has(promotion))).map((lesson) => lesson.id),
   );
 }
+
+// Ce que l'abonnement a enregistré pour une promotion (GET /api/subscription) : `all-except`, tous ses cours
+// sauf ceux de `keys` ; `only`, seulement ceux de `keys`.
+export type StoredPromotion = { label: string; mode: 'all-except' | 'only'; keys: string[] };
+
+// Cours à recocher quand l'élève revient modifier sa sélection : ceux que son abonnement suit, même règle que le
+// flux (isLessonFollowed, server/subscription.mjs). Une promotion ajoutée depuis n'a rien d'enregistré : préréglage,
+// tous ses cours.
+export function getFollowedLessonIds(
+  lessons: Lesson[],
+  promotions: ReadonlySet<string>,
+  stored: StoredPromotion[],
+): Set<string> {
+  const isKept = (lesson: Lesson, promotion: string) => {
+    const entry = stored.find((candidate) => candidate.label === promotion);
+    if (!entry) return true;
+    return entry.mode === 'all-except' ? !entry.keys.includes(lesson.key) : entry.keys.includes(lesson.key);
+  };
+  return new Set(
+    lessons
+      .filter(
+        (lesson) =>
+          lesson.mandatory ||
+          lesson.promotions.some((promotion) => promotions.has(promotion) && isKept(lesson, promotion)),
+      )
+      .map((lesson) => lesson.id),
+  );
+}

@@ -16,6 +16,19 @@
   letter-spacing: -0.04em;
 }
 
+/* --- Après une modification de la sélection --- */
+
+.feed-ready__updated {
+  margin: 0;
+}
+
+/* Même allure que « Le bouton ne marche pas ? » : un lien discret, pas un bouton de plus. */
+.feed-ready__reveal {
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  text-decoration: underline;
+}
+
 /* --- Choix de l’application de calendrier --- */
 
 .feed-ready__apps {

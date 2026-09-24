@@ -122,15 +122,23 @@ function SendToComputer({ appName, tabLabel, pageUrl }: { appName: string; tabLa
 type FeedReadyProps = {
   pageUrl: string;
   feedUrl: string;
-  // Absent quand la page est rouverte depuis son lien : il n'y a pas de sélection en cours à retrouver.
+  // Juste après la création : retour au récapitulatif.
   onBack?: () => void;
+  // Page de l'élève, rouverte depuis son lien : à la place du retour, modifier ses cours.
+  onEdit?: () => void;
+  // Sélection tout juste modifiée depuis la page de l'élève.
+  updated?: boolean;
 };
 
 // Dernier écran : l'abonnement est prêt, l'élève l'ajoute à son calendrier.
 // Le flux se met à jour tout seul : c'est un abonnement, jamais un fichier importé une fois pour toutes.
-export function FeedReady({ pageUrl, feedUrl, onBack }: FeedReadyProps) {
+export function FeedReady({ pageUrl, feedUrl, onBack, onEdit, updated = false }: FeedReadyProps) {
   const [app, setApp] = useState<CalendarApp>(() => detectCalendarApp());
   const [keepMessage, setKeepMessage] = useState('');
+  // Après une modification, l'ajout au calendrier est replié : l'élève l'a normalement déjà fait, et l'ajouter une
+  // seconde fois doublerait ses cours. Il reste accessible pour celui qui ne l'avait pas encore fait.
+  const [addRevealed, setAddRevealed] = useState(false);
+  const showAdd = !updated || addRevealed;
   const phone = isPhone();
   // Sur un téléphone, le lien direct vers Google Agenda ou Outlook ne marche pas : la marche à suivre devient l'action principale.
   const webSummary = phone ? 'Ou ajoute-le à la main' : 'Le bouton ne marche pas ?';
@@ -143,63 +151,79 @@ export function FeedReady({ pageUrl, feedUrl, onBack }: FeedReadyProps) {
 
   return (
     <div className="feed-ready">
-      <AppHeader onBack={onBack} />
+      <AppHeader onBack={onBack} onEdit={onEdit} />
       <Stepper total={4} current={4} />
 
       <h1 className="feed-ready__title">
         <img src={checkBadgeUrl} alt="" width={28} height={28} />
-        C’est prêt !
+        {updated ? 'C’est à jour !' : 'C’est prêt !'}
       </h1>
 
-      <div className="feed-ready__apps">
-        {CALENDAR_APPS.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            className={entry.id === app ? 'feed-ready__app feed-ready__app--active' : 'feed-ready__app'}
-            aria-pressed={entry.id === app}
-            onClick={() => setApp(entry.id)}
-          >
-            {entry.label}
-          </button>
-        ))}
-      </div>
-
-      {app === 'apple' && (
-        <div className="feed-ready__panel">
-          <AddButton onClick={addToAppleCalendar}>Ajouter à Apple Calendar</AddButton>
-          <p className="feed-ready__hint">
-            Ajoute-le une seule fois : avec iCloud, il apparaît aussi sur tes autres appareils Apple.
-          </p>
-          <ManualSubscription
-            summary="Le bouton ne marche pas ?"
-            steps={isAppleTouchDevice() ? APPLE_TOUCH_STEPS : APPLE_MAC_STEPS}
-            feedUrl={feedUrl}
-          />
-        </div>
+      {updated && (
+        <p className="feed-ready__updated">
+          Rien à refaire : ton calendrier se met à jour tout seul. Selon ton application, ça peut prendre jusqu’à 24 h.
+        </p>
       )}
 
-      {app === 'google' && (
-        <div className="feed-ready__panel">
-          {phone ? (
-            <SendToComputer appName="Google Agenda" tabLabel="Google" pageUrl={pageUrl} />
-          ) : (
-            <AddButton onClick={() => openInNewTab(googleCalendarUrl(feedUrl))}>Ajouter à Google Agenda</AddButton>
-          )}
-          <p className="feed-ready__hint">Google Agenda peut mettre jusqu’à 24 h à afficher un changement de cours.</p>
-          <ManualSubscription summary={webSummary} steps={GOOGLE_STEPS} feedUrl={feedUrl} />
-        </div>
+      {!showAdd && (
+        <button className="feed-ready__reveal" type="button" onClick={() => setAddRevealed(true)}>
+          Tu ne l’as pas encore ajouté à ton calendrier ?
+        </button>
       )}
 
-      {app === 'outlook' && (
-        <div className="feed-ready__panel">
-          {phone ? (
-            <SendToComputer appName="Outlook" tabLabel="Outlook" pageUrl={pageUrl} />
-          ) : (
-            <AddButton onClick={() => openInNewTab(outlookUrl(feedUrl))}>Ajouter à Outlook</AddButton>
+      {showAdd && (
+        <>
+          <div className="feed-ready__apps">
+            {CALENDAR_APPS.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                className={entry.id === app ? 'feed-ready__app feed-ready__app--active' : 'feed-ready__app'}
+                aria-pressed={entry.id === app}
+                onClick={() => setApp(entry.id)}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+
+          {app === 'apple' && (
+            <div className="feed-ready__panel">
+              <AddButton onClick={addToAppleCalendar}>Ajouter à Apple Calendar</AddButton>
+              <p className="feed-ready__hint">
+                Ajoute-le une seule fois : avec iCloud, il apparaît aussi sur tes autres appareils Apple.
+              </p>
+              <ManualSubscription
+                summary="Le bouton ne marche pas ?"
+                steps={isAppleTouchDevice() ? APPLE_TOUCH_STEPS : APPLE_MAC_STEPS}
+                feedUrl={feedUrl}
+              />
+            </div>
           )}
-          <ManualSubscription summary={webSummary} steps={OUTLOOK_STEPS} feedUrl={feedUrl} />
-        </div>
+
+          {app === 'google' && (
+            <div className="feed-ready__panel">
+              {phone ? (
+                <SendToComputer appName="Google Agenda" tabLabel="Google" pageUrl={pageUrl} />
+              ) : (
+                <AddButton onClick={() => openInNewTab(googleCalendarUrl(feedUrl))}>Ajouter à Google Agenda</AddButton>
+              )}
+              <p className="feed-ready__hint">Google Agenda peut mettre jusqu’à 24 h à afficher un changement de cours.</p>
+              <ManualSubscription summary={webSummary} steps={GOOGLE_STEPS} feedUrl={feedUrl} />
+            </div>
+          )}
+
+          {app === 'outlook' && (
+            <div className="feed-ready__panel">
+              {phone ? (
+                <SendToComputer appName="Outlook" tabLabel="Outlook" pageUrl={pageUrl} />
+              ) : (
+                <AddButton onClick={() => openInNewTab(outlookUrl(feedUrl))}>Ajouter à Outlook</AddButton>
+              )}
+              <ManualSubscription summary={webSummary} steps={OUTLOOK_STEPS} feedUrl={feedUrl} />
+            </div>
+          )}
+        </>
       )}
 
       <div className="feed-ready__keep">

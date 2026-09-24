@@ -4,7 +4,7 @@ Ajoute ton horaire Hyperplanning à ton calendrier personnel, grâce à un abonn
 
 L'Hyperplanning de l'HEFF n'a pas d'export ICS natif. HyperICS récupère les cours, les interprète, puis les sert à chaque élève sous forme de flux ICS, filtré sur les cours qu'il suit réellement. Le flux se branche dans toute application de calendrier qui accepte les abonnements ICS.
 
-> **Statut : MVP en cours de développement.** Début de la bêta restreinte prévu le 25 septembre 2026. L'abonnement (flux ICS) fonctionne ; la sélection n'est pas encore modifiable après coup et la page de suppression des données n'existe pas encore : voir [État du projet](#état-du-projet).
+> **Statut : MVP en cours de développement.** Début de la bêta restreinte prévu le 25 septembre 2026. L'abonnement (flux ICS) fonctionne et la sélection se modifie depuis la page de l'élève ; la page de suppression des données n'existe pas encore : voir [État du projet](#état-du-projet).
 >
 > Projet indépendant, non affilié à l'HEFF ni à Index Éducation (éditeur d'Hyperplanning). Voir [Avertissement](#avertissement).
 
@@ -41,7 +41,7 @@ API Vercel (/api)  ──►  front React (choix des cours, page de l'élève /m
 - [x] Installation sur l'écran d'accueil (PWA)
 - [x] Signalement de bug par mail (Resend)
 - [x] Abonnement : jeton, flux ICS (fuseau Europe/Brussels, salle et prof de chaque séance), page de l'élève, ajout guidé par plateforme (iOS, Android, Mac/PC)
-- [ ] Sélection modifiable depuis la page de l'élève
+- [x] Sélection modifiable depuis la page de l'élève
 - [ ] Suppression des données depuis la page de l'élève
 
 ## Technique
