@@ -32,26 +32,36 @@ export const ROOM_RESOLUTION_BUDGET_MS = 5 * 60 * 1000;
 const describeRooms = ({ reused, resolved, deferred }) =>
   reused + resolved + deferred === 0 ? '' : ` (salles : ${reused} reprises, ${resolved} affinées, ${deferred} reportées)`;
 
-// Créneaux du planning précédent de chaque promotion, dont on reprend la résolution des salles. Un échec de
-// lecture n'empêche pas le scrap : tout sera simplement résolu à nouveau, dans la limite du budget.
-async function readPreviousCourses(redis, promotions, log) {
+// Planning précédent de chaque promotion : on en reprend la résolution des salles, et il sert de référence
+// pour un planning qui revient vide. `null` si la lecture échoue : les salles seront toutes résolues à nouveau,
+// dans la limite du budget, mais un planning vide ne pourra pas être vérifié.
+async function readPreviousRecords(redis, promotions, log) {
   try {
     const records = await redis.mgetJson(promotions.map((promotion) => scheduleKey(promotion.label)));
     return new Map(
       records.filter(Boolean).map((record) => [
         record.promotion,
-        // Planning écrit avant la datation des résolutions : il n'était écrit qu'une fois ses salles résolues,
-        // sa date de scrap est donc celle de la résolution.
-        record.courses.map((course) =>
-          course.roomsByWeek && !course.roomsResolvedAt ? { ...course, roomsResolvedAt: record.scrapedAt } : course,
-        ),
+        {
+          ...record,
+          // Planning écrit avant la datation des résolutions : il n'était écrit qu'une fois ses salles résolues,
+          // sa date de scrap est donc celle de la résolution.
+          courses: record.courses.map((course) =>
+            course.roomsByWeek && !course.roomsResolvedAt ? { ...course, roomsResolvedAt: record.scrapedAt } : course,
+          ),
+        },
       ]),
     );
   } catch (error) {
     log(`Plannings précédents illisibles (${error.message}) : les salles seront toutes résolues à nouveau.`);
-    return new Map();
+    return null;
   }
 }
+
+// Nombre de passages consécutifs qui doivent renvoyer un planning vide avant qu'il remplace un planning
+// qui avait des cours. Hyperplanning peut renvoyer une liste vide par erreur : l'écrire aussitôt viderait
+// les calendriers de toute la promotion. Les passages sont espacés d'au moins 50 min (voir scrap-window.mjs),
+// le vide n'est donc écrit qu'après environ 2 h ; un seul passage avec des cours remet le compte à zéro.
+export const EMPTY_SCHEDULE_CONFIRMATIONS = 3;
 
 // Une promotion en échec garde son ancien planning : on ne l'écrase jamais avec un résultat douteux.
 // `fetchRawWeeks(promotion, weeksRangeText)` : même requête que `fetchRaw`, sur une plage de semaines
@@ -69,19 +79,33 @@ export async function syncSchedules({
   log = () => {},
 }) {
   const written = [];
+  const held = []; // promotions revenues vides, dont on garde l'ancien planning en attendant confirmation
   const failed = [];
   const hasCourses = new Map(); // promotion écrite -> son planning contient au moins un créneau
-  const previousCourses = fetchRawWeeks ? await readPreviousCourses(redis, promotions, log) : new Map();
+  const previousRecords = await readPreviousRecords(redis, promotions, log);
   const deadline = clock() + roomBudgetMs;
 
   for (const promotion of promotions) {
     try {
       const raw = await fetchRaw(promotion);
       const record = buildScheduleRecord({ promotion, raw, firstMonday, now });
+      const previous = previousRecords?.get(promotion.label);
+      if (record.courses.length === 0) {
+        if (!previousRecords) throw new Error('planning vide, invérifiable sans le planning précédent');
+        if (previous?.courses.length > 0) {
+          const emptyScrapes = (previous.emptyScrapes ?? 0) + 1;
+          if (emptyScrapes < EMPTY_SCHEDULE_CONFIRMATIONS) {
+            await redis.setJson(scheduleKey(promotion.label), { ...previous, emptyScrapes });
+            held.push(promotion.label);
+            log(`${promotion.label} : planning vide (${emptyScrapes}/${EMPTY_SCHEDULE_CONFIRMATIONS}), ancien planning gardé`);
+            continue;
+          }
+        }
+      }
       let rooms = '';
       if (fetchRawWeeks) {
         const result = await resolveAmbiguousRooms((weeksRange) => fetchRawWeeks(promotion, weeksRange), record.courses, {
-          previous: previousCourses.get(promotion.label) ?? [],
+          previous: previous?.courses ?? [],
           now,
           deadline,
           clock,
@@ -99,8 +123,10 @@ export async function syncSchedules({
     }
   }
 
-  // Sans aucune écriture réussie, on garde l'ancienne liste.
-  if (written.length > 0) {
+  // Sans aucune écriture réussie, on garde l'ancienne liste. Un planning vide gardé compte comme un passage
+  // réussi : la liste est réécrite pour dater ce passage, sinon le suivant aurait lieu 15 min plus tard et
+  // un planning vide renvoyé à toutes les promotions serait confirmé en 30 min.
+  if (written.length + held.length > 0) {
     try {
       await writeIndex({ promotions, written, hasCourses, redis, now });
     } catch (error) {
@@ -108,11 +134,12 @@ export async function syncSchedules({
       log(`${SCHEDULE_INDEX_KEY} : ÉCHEC (${error.message})`);
     }
   }
-  return { written, failed };
+  return { written, held, failed };
 }
 
 // La liste ne mentionne que des promotions qui ont un planning en base : celles écrites
-// maintenant, et celles déjà listées dont l'écriture vient d'échouer (leur ancien planning existe).
+// maintenant, et celles déjà listées dont l'écriture vient d'échouer ou dont le planning vide attend confirmation
+// (leur ancien planning existe).
 // `hasCourses` permet à l'app d'indiquer « Aucun cours publié » sans lire les plannings ; une promotion
 // dont l'écriture échoue garde la valeur précédente, et le champ reste absent tant qu'on ne la connaît pas.
 async function writeIndex({ promotions, written, hasCourses, redis, now }) {

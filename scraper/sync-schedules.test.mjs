@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SCHEDULE_INDEX_KEY, scheduleKey } from '../shared/redis-keys.mjs';
-import { buildScheduleRecord, syncSchedules } from './sync-schedules.mjs';
+import { buildScheduleRecord, EMPTY_SCHEDULE_CONFIRMATIONS, syncSchedules } from './sync-schedules.mjs';
 
 const NOW = new Date('2026-09-20T15:00:00Z');
 const FIRST_MONDAY = '2026-09-14';
@@ -50,7 +50,7 @@ test('buildScheduleRecord refuse une réponse sans ListeCours mais accepte une l
 test('syncSchedules écrit un planning par promotion, puis la liste', async () => {
   const redis = fakeRedis();
   const result = await run({ promotions: [promo('3TI Web'), promo('1AT')], fetchRaw: async () => rawWith('Cours'), redis });
-  assert.deepEqual(result, { written: ['3TI Web', '1AT'], failed: [] });
+  assert.deepEqual(result, { written: ['3TI Web', '1AT'], held: [], failed: [] });
   assert.equal(JSON.parse(redis.store.get(scheduleKey('3TI Web'))).courses.length, 1);
   assert.deepEqual(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)), {
     updatedAt: NOW.toISOString(),
@@ -158,6 +158,61 @@ test("sans aucune écriture réussie, la liste existante n'est pas touchée", as
   assert.deepEqual(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)), previous);
 });
 
+// --- Planning revenu vide : confirmé sur plusieurs passages avant d'écraser un planning qui avait des cours.
+
+const withCourses = { promotion: '3TI Web', scrapedAt: 'avant', courses: [{ key: 'ancien' }] };
+const empty = async () => ({ ListeCours: [] });
+
+test("un planning vide n'écrase pas aussitôt un planning qui avait des cours", async () => {
+  const index = { updatedAt: 'avant', promotions: [{ label: '3TI Web', curriculum: 'graphic-technics', hasCourses: true }] };
+  const redis = fakeRedis({ initial: { [scheduleKey('3TI Web')]: withCourses, [SCHEDULE_INDEX_KEY]: index } });
+  const logs = [];
+  const result = await run({ promotions: [promo('3TI Web')], fetchRaw: empty, redis, log: (message) => logs.push(message) });
+  assert.deepEqual(result, { written: [], held: ['3TI Web'], failed: [] });
+  assert.deepEqual(JSON.parse(redis.store.get(scheduleKey('3TI Web'))), { ...withCourses, emptyScrapes: 1 });
+  assert.ok(logs.includes('3TI Web : planning vide (1/3), ancien planning gardé'));
+  // La liste est redatée (le passage compte), la promotion garde ses cours.
+  assert.deepEqual(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)), { ...index, updatedAt: NOW.toISOString() });
+});
+
+test(`le planning vide est écrit au ${EMPTY_SCHEDULE_CONFIRMATIONS}e passage vide consécutif`, async () => {
+  const redis = fakeRedis({ initial: { [scheduleKey('3TI Web')]: withCourses } });
+  for (let i = 1; i < EMPTY_SCHEDULE_CONFIRMATIONS; i++) {
+    assert.deepEqual((await run({ promotions: [promo('3TI Web')], fetchRaw: empty, redis })).held, ['3TI Web']);
+  }
+  const result = await run({ promotions: [promo('3TI Web')], fetchRaw: empty, redis });
+  assert.deepEqual(result, { written: ['3TI Web'], held: [], failed: [] });
+  const record = JSON.parse(redis.store.get(scheduleKey('3TI Web')));
+  assert.deepEqual(record.courses, []);
+  assert.equal('emptyScrapes' in record, false);
+  assert.equal(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)).promotions[0].hasCourses, false);
+});
+
+test('un passage avec des cours remet le compte des plannings vides à zéro', async () => {
+  const redis = fakeRedis({ initial: { [scheduleKey('3TI Web')]: { ...withCourses, emptyScrapes: EMPTY_SCHEDULE_CONFIRMATIONS - 1 } } });
+  await run({ promotions: [promo('3TI Web')], fetchRaw: async () => rawWith('Cours'), redis });
+  assert.equal('emptyScrapes' in JSON.parse(redis.store.get(scheduleKey('3TI Web'))), false);
+  assert.deepEqual((await run({ promotions: [promo('3TI Web')], fetchRaw: empty, redis })).held, ['3TI Web']);
+});
+
+test("un planning vide est écrit aussitôt si la promotion n'avait pas de cours", async () => {
+  const redis = fakeRedis({ initial: { [scheduleKey('2PUBB')]: { promotion: '2PUBB', courses: [] } } });
+  const result = await run({ promotions: [promo('2PUBB'), promo('1AT')], fetchRaw: empty, redis });
+  assert.deepEqual(result, { written: ['2PUBB', '1AT'], held: [], failed: [] }); // 1AT : jamais écrite
+});
+
+test('un planning vide est refusé si les plannings précédents sont illisibles', async () => {
+  const redis = {
+    ...fakeRedis(),
+    mgetJson: async () => {
+      throw new Error('Redis MGET : HTTP 500');
+    },
+  };
+  const result = await run({ promotions: [promo('3TI Web'), promo('1AT')], fetchRaw: async (p) => (p.label === '1AT' ? rawWith('Cours') : { ListeCours: [] }), redis });
+  assert.deepEqual(result.written, ['1AT']);
+  assert.match(result.failed[0].message, /planning vide, invérifiable/);
+});
+
 // --- Coût de la résolution des salles : reprise du planning précédent, budget par passage.
 
 const noRequest = async () => {
@@ -200,7 +255,7 @@ test('budget épuisé : aucune requête de plus, mais toutes les promotions et l
     roomBudgetMs: 0,
     log: (message) => logs.push(message),
   });
-  assert.deepEqual(result, { written: ['3TI Web', '2TI Web'], failed: [] });
+  assert.deepEqual(result, { written: ['3TI Web', '2TI Web'], held: [], failed: [] });
   assert.equal(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)).promotions.length, 2);
   const { courses } = JSON.parse(redis.store.get(scheduleKey('2TI Web')));
   assert.deepEqual(courses[0].rooms, ['L320', 'L316']); // salles telles quelles, à affiner au prochain passage

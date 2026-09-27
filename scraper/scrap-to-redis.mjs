@@ -50,7 +50,7 @@ if (promotions.length === 0) {
   process.exit(1);
 }
 
-const { written, failed } = await syncSchedules({
+const { written, held, failed } = await syncSchedules({
   promotions,
   fetchRaw: (promotion) => fetchRawSchedule(session, promotion),
   fetchRawWeeks: (promotion, weeksRange) => fetchRawSchedule(session, promotion, weeksRange),
@@ -58,7 +58,7 @@ const { written, failed } = await syncSchedules({
   firstMonday: parseDate(generalParams.PremierLundi.V),
   log,
 });
-log(`${written.length} écrites, ${failed.length} en échec.`);
+log(`${written.length} écrites, ${held.length} vides en attente de confirmation, ${failed.length} en échec.`);
 
 if (dryRun) {
   for (const [key, value] of memory) log(`  ${key} (${value.length} octets)`);
