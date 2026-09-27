@@ -46,6 +46,9 @@ jobs:
         env:
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          # Mail quand la liste des promotions change (scraper/watch-promotions.mjs) ; facultatif.
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          BUG_REPORT_EMAIL: ${{ secrets.BUG_REPORT_EMAIL }}
           DRY_RUN: ${{ inputs.dry_run }}
           FORCE: ${{ inputs.force }}
         run: |

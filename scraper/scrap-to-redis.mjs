@@ -4,13 +4,17 @@
 //   --only-in-hours                                        ne fait rien hors de 7h–17h (Europe/Brussels) ; utilisé par le cron
 //   --skip-if-fresh                                        ne fait rien si le dernier scrap a moins de 50 min ; utilisé par le cron
 // Ne scrape que les promotions du périmètre Waterside. Code de sortie 1 si une écriture échoue.
+// Avec RESEND_API_KEY et BUG_REPORT_EMAIL, prévient par mail quand la liste des promotions change (voir
+// watch-promotions.mjs) ; sans elles, le changement n'apparaît que dans les logs.
 import { createRedisClient } from '../shared/redis-client.mjs';
 import { SCHEDULE_INDEX_KEY } from '../shared/redis-keys.mjs';
+import { createResendClient } from '../shared/resend-client.mjs';
 import { isInWatersideScope } from './campus-scope.mjs';
 import { fetchRawSchedule, listPromotions, openSession } from './hyperplanning-client.mjs';
 import { parseDate } from './parse-schedule.mjs';
 import { isFresh, isWithinScrapHours } from './scrap-window.mjs';
 import { syncSchedules } from './sync-schedules.mjs';
+import { watchPromotions } from './watch-promotions.mjs';
 
 const dryRun = process.argv.includes('--dry-run');
 const onlyInHours = process.argv.includes('--only-in-hours');
@@ -59,6 +63,12 @@ const { written, held, failed } = await syncSchedules({
   log,
 });
 log(`${written.length} écrites, ${held.length} vides en attente de confirmation, ${failed.length} en échec.`);
+
+// Pas de mail en simulation : la base en mémoire est vide, il n'y a rien à comparer.
+const mailer = !dryRun && process.env.RESEND_API_KEY && process.env.BUG_REPORT_EMAIL ? createResendClient() : null;
+const changes = await watchPromotions({ labels: all.map(({ label }) => label), redis, notify: mailer?.send, log });
+// Annotation visible sur la page du run GitHub Actions, avec ou sans mail.
+if (changes && process.env.GITHUB_ACTIONS) console.log('::warning::Promotions modifiées dans Hyperplanning, voir les logs.');
 
 if (dryRun) {
   for (const [key, value] of memory) log(`  ${key} (${value.length} octets)`);
