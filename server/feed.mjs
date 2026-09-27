@@ -6,7 +6,7 @@ import { scheduleKey } from '../shared/redis-keys.mjs';
 import { icsResponse } from './http.mjs';
 import { buildIcs } from './ics.mjs';
 import { buildDetailedLessons } from './lessons.mjs';
-import { findSubscription, isDeleted, isLessonFollowed } from './subscription.mjs';
+import { findSubscription, isDeleted, isLessonFollowed, withCurrentKeys } from './subscription.mjs';
 
 export async function getFeedIcs(redis, url, now = new Date()) {
   const { subscription } = await findSubscription(redis, url, { includeDeleted: true });
@@ -15,7 +15,8 @@ export async function getFeedIcs(redis, url, now = new Date()) {
   // Une promotion peut disparaître de Redis entre-temps (sortie du périmètre, renommée) : on l'ignore plutôt que
   // de faire échouer tout le flux de l'élève.
   const records = (await redis.mgetJson(labels.map(scheduleKey))).filter(Boolean);
-  const lessons = buildDetailedLessons(records).filter((lesson) => isLessonFollowed(lesson, subscription));
+  const followed = { promotions: withCurrentKeys(subscription.promotions, records) };
+  const lessons = buildDetailedLessons(records).filter((lesson) => isLessonFollowed(lesson, followed));
   // D'après `records`, pas `labels` : une promotion disparue ne doit pas déclencher la précision de promotion
   // sur les cours de celle qui reste. Sans promotion connue, `lessons` est vide : buildIcs ne lit pas firstMonday.
   const promotions = records.map((record) => record.promotion);

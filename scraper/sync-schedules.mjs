@@ -4,6 +4,7 @@ import { SCHEDULE_INDEX_KEY, scheduleKey } from '../shared/redis-keys.mjs';
 import { getCurriculum } from './campus-scope.mjs';
 import { parseCourses } from './parse-schedule.mjs';
 import { resolveAmbiguousRooms } from './resolve-rooms.mjs';
+import { trackRenames } from './track-renames.mjs';
 
 // Contenu de `schedule:<promotion>`. Chaque créneau porte la clé de son cours ;
 // les créneaux d'un même cours (plusieurs occurrences par semaine) se regroupent à la lecture.
@@ -32,9 +33,10 @@ export const ROOM_RESOLUTION_BUDGET_MS = 5 * 60 * 1000;
 const describeRooms = ({ reused, resolved, deferred }) =>
   reused + resolved + deferred === 0 ? '' : ` (salles : ${reused} reprises, ${resolved} affinées, ${deferred} reportées)`;
 
-// Planning précédent de chaque promotion : on en reprend la résolution des salles, et il sert de référence
-// pour un planning qui revient vide. `null` si la lecture échoue : les salles seront toutes résolues à nouveau,
-// dans la limite du budget, mais un planning vide ne pourra pas être vérifié.
+// Planning précédent de chaque promotion : on en reprend la résolution des salles et les renommages de matière,
+// et il sert de référence pour un planning qui revient vide. `null` si la lecture échoue : les salles seront toutes
+// résolues à nouveau, dans la limite du budget, un planning vide ne pourra pas être vérifié, et les renommages
+// déjà connus sont perdus (les abonnements qui gardaient une ancienne clé ne la reconnaissent plus).
 async function readPreviousRecords(redis, promotions, log) {
   try {
     const records = await redis.mgetJson(promotions.map((promotion) => scheduleKey(promotion.label)));
@@ -102,6 +104,8 @@ export async function syncSchedules({
           }
         }
       }
+      const renamedKeys = trackRenames(previous, record.courses);
+      if (Object.keys(renamedKeys).length > 0) record.renamedKeys = renamedKeys;
       let rooms = '';
       if (fetchRawWeeks) {
         const result = await resolveAmbiguousRooms((weeksRange) => fetchRawWeeks(promotion, weeksRange), record.courses, {

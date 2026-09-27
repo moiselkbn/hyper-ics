@@ -9,10 +9,11 @@
 //
 // Ce qui est stocké : par promotion, un mode et des clés de matière (voir shared/course-key.mjs), jamais les
 // identifiants de cours, qui changent quand un cours reçoit un code. Le flux se recalcule à chaque lecture à
-// partir du dernier scrap : une nouvelle semaine d'un cours suivi y entre toute seule.
+// partir du dernier scrap : une nouvelle semaine d'un cours suivi y entre toute seule, et une clé dont la matière a
+// été renommée depuis est traduite (voir withCurrentKeys).
 //  - `all-except` : tous les cours de la promotion, présents et à venir, sauf ceux de `keys` (décochés) ;
 //  - `only` : seulement les cours de `keys` (cochés).
-import { SCHEDULE_INDEX_KEY, subscriptionKey } from '../shared/redis-keys.mjs';
+import { SCHEDULE_INDEX_KEY, scheduleKey, subscriptionKey } from '../shared/redis-keys.mjs';
 import { generateToken, hashToken, isTokenFormat } from '../shared/token.mjs';
 import { HttpError, jsonNoStore, readJsonBody } from './http.mjs';
 import { validatePromotionLabels } from './lessons.mjs';
@@ -83,6 +84,18 @@ export function isLessonFollowed(lesson, subscription) {
   );
 }
 
+// Clés enregistrées -> clés actuelles : une matière renommée depuis l'enregistrement de la sélection (voir
+// scraper/track-renames.mjs) reste cochée ou décochée comme l'élève l'avait laissée. `records` : plannings des
+// promotions de l'abonnement, tels que lus dans Redis (null pour une promotion disparue).
+export function withCurrentKeys(promotions, records) {
+  const renamesOf = new Map(records.filter(Boolean).map((record) => [record.promotion, record.renamedKeys ?? {}]));
+  return promotions.map((entry) => {
+    const renamed = renamesOf.get(entry.label) ?? {};
+    const keys = entry.keys.map((key) => (Object.hasOwn(renamed, key) ? renamed[key] : key));
+    return { ...entry, keys: [...new Set(keys)] };
+  });
+}
+
 // L'index ne liste que des promotions qui ont un planning en base.
 async function knownPromotions(redis) {
   const index = await redis.getJson(SCHEDULE_INDEX_KEY);
@@ -133,11 +146,14 @@ export async function createSubscription(redis, request, now = new Date()) {
 }
 
 // Une promotion sortie de l'index depuis (hors périmètre, renommée) n'est pas renvoyée : l'élève ne pourrait ni la
-// voir ni la décocher, et le PUT la refuserait.
+// voir ni la décocher, et le PUT la refuserait. Les clés sont renvoyées à jour des renommages de matière, pour
+// recocher le cours sous son nouveau libellé.
 export async function getSubscription(redis, url) {
   const { subscription } = await findSubscription(redis, url);
   const known = await knownPromotions(redis);
-  return jsonNoStore({ promotions: subscription.promotions.filter((entry) => known.has(entry.label)) });
+  const promotions = subscription.promotions.filter((entry) => known.has(entry.label));
+  const records = promotions.length > 0 ? await redis.mgetJson(promotions.map((entry) => scheduleKey(entry.label))) : [];
+  return jsonNoStore({ promotions: withCurrentKeys(promotions, records) });
 }
 
 export async function updateSubscription(redis, request, now = new Date()) {

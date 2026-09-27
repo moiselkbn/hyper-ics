@@ -1,7 +1,7 @@
 // Lancer avec : node --test server/
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SCHEDULE_INDEX_KEY, subscriptionKey } from '../shared/redis-keys.mjs';
+import { SCHEDULE_INDEX_KEY, scheduleKey, subscriptionKey } from '../shared/redis-keys.mjs';
 import { generateToken, hashToken } from '../shared/token.mjs';
 import {
   chooseModes,
@@ -31,6 +31,7 @@ function inMemoryRedis(seed = {}) {
       else expiries.delete(key);
     },
     getJson: async (key) => (store.has(key) ? JSON.parse(store.get(key)) : null),
+    mgetJson: async (keys) => keys.map((key) => (store.has(key) ? JSON.parse(store.get(key)) : null)),
   };
 }
 
@@ -205,6 +206,22 @@ test('getSubscription ne renvoie pas une promotion sortie de l’index depuis', 
   redis.store.set(SCHEDULE_INDEX_KEY, JSON.stringify(index('3TI Web')[SCHEDULE_INDEX_KEY]));
   const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
   assert.deepEqual(await response.json(), { promotions: [{ label: '3TI Web', mode: 'all-except', keys: [] }] });
+});
+
+test('getSubscription renvoie les clés à jour des matières renommées depuis, pour les recocher', async () => {
+  const redis = inMemoryRedis(index('3TI Web', '2TI Web'));
+  const body = { promotions: [entry('3TI Web', ['a', 'b'], ['c']), entry('2TI Web', ['x', 'w'], ['y', 'z', 'u'])] };
+  const { token } = await (await createSubscription(redis, post(body))).json();
+  redis.store.set(scheduleKey('3TI Web'), JSON.stringify({ promotion: '3TI Web', courses: [], renamedKeys: { c: 'c2' } }));
+  // Une clé renommée en une clé déjà enregistrée : une seule fois.
+  redis.store.set(scheduleKey('2TI Web'), JSON.stringify({ promotion: '2TI Web', courses: [], renamedKeys: { x: 'w' } }));
+  const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
+  assert.deepEqual(await response.json(), {
+    promotions: [
+      { label: '3TI Web', mode: 'all-except', keys: ['c2'] },
+      { label: '2TI Web', mode: 'only', keys: ['w'] },
+    ],
+  });
 });
 
 test('updateSubscription remplace la sélection sous le même jeton et garde la date de création', async () => {

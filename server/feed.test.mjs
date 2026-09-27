@@ -162,6 +162,29 @@ test('un cours qui reçoit un code après l’abonnement reste suivi, et un cour
   ]);
 });
 
+test('une matière renommée après l’abonnement garde son choix, décochée comme cochée', async () => {
+  const redis = inMemoryRedis([
+    record('1TI', [slot({ subject: 'Electr. num. 1', code: 'TI-101' }), slot({ subject: 'Anglais', code: 'TI-102', day: 1 })]),
+    record('2TI', [slot({ subject: 'Réseaux', code: 'TI-201', day: 2 }), slot({ subject: 'Design', code: 'TI-202', day: 3 })]),
+  ]);
+  const token = await subscribe(redis, [
+    { label: '1TI', checked: [courseKey('Anglais')], unchecked: [courseKey('Electr. num. 1')] }, // all-except
+    { label: '2TI', checked: [courseKey('Réseaux')], unchecked: [courseKey('Design')] }, // only
+  ]);
+  assert.deepEqual(summaries(await feedOf(redis, token)).sort(), ['Anglais (1TI)', 'Réseaux (2TI)']);
+
+  // Le scrap a noté les renommages (voir scraper/track-renames.mjs).
+  rescrap(redis, {
+    ...record('1TI', [slot({ subject: 'Electr. num. 1 (combin.)', code: 'TI-101' }), slot({ subject: 'Anglais', code: 'TI-102', day: 1 })]),
+    renamedKeys: { [courseKey('Electr. num. 1')]: courseKey('Electr. num. 1 (combin.)') },
+  });
+  rescrap(redis, {
+    ...record('2TI', [slot({ subject: 'Réseaux informatiques', code: 'TI-201', day: 2 }), slot({ subject: 'Design', code: 'TI-202', day: 3 })]),
+    renamedKeys: { [courseKey('Réseaux')]: courseKey('Réseaux informatiques') },
+  });
+  assert.deepEqual(summaries(await feedOf(redis, token)).sort(), ['Anglais (1TI)', 'Réseaux informatiques (2TI)']);
+});
+
 test('getFeedIcs ignore une promotion qui aurait disparu de Redis entre-temps', async () => {
   const redis = inMemoryRedis([record('1AT', [slot({ subject: 'Tissage' })]), record('2AT', [slot({ subject: 'Teinture' })])]);
   const token = await subscribe(redis, [

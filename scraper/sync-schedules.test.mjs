@@ -89,7 +89,7 @@ test("une promotion dont l'écriture échoue garde son ancien hasCourses, ou auc
 });
 
 test("un résultat douteux n'écrase pas l'ancien planning", async () => {
-  const old = { promotion: '3TI Web', courses: [{ key: 'ancien' }] };
+  const old = { promotion: '3TI Web', courses: [{ key: 'ancien', code: null, day: 0, start: '09:00', end: '11:00', weeks: [1] }] };
   const redis = fakeRedis({ initial: { [scheduleKey('3TI Web')]: old } });
   const result = await run({ promotions: [promo('3TI Web'), promo('1AT')], fetchRaw: async (p) => (p.label === '3TI Web' ? {} : rawWith('Cours')), redis });
   assert.deepEqual(result.written, ['1AT']);
@@ -158,9 +158,24 @@ test("sans aucune écriture réussie, la liste existante n'est pas touchée", as
   assert.deepEqual(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)), previous);
 });
 
+test('une matière renommée entre deux passages est notée dans le planning, pour l’abonnement des élèves', async () => {
+  const redis = fakeRedis();
+  await run({ promotions: [promo('3TI Web')], fetchRaw: async () => rawWith('Electr. num. 1'), redis });
+  assert.equal('renamedKeys' in JSON.parse(redis.store.get(scheduleKey('3TI Web'))), false);
+  await run({ promotions: [promo('3TI Web')], fetchRaw: async () => rawWith('Electr. num. 1 (combin.)'), redis });
+  assert.deepEqual(JSON.parse(redis.store.get(scheduleKey('3TI Web'))).renamedKeys, {
+    'electr. num. 1': 'electr. num. 1 (combin.)',
+  });
+  // Gardé aux passages suivants.
+  await run({ promotions: [promo('3TI Web')], fetchRaw: async () => rawWith('Electr. num. 1 (combin.)'), redis });
+  assert.deepEqual(JSON.parse(redis.store.get(scheduleKey('3TI Web'))).renamedKeys, {
+    'electr. num. 1': 'electr. num. 1 (combin.)',
+  });
+});
+
 // --- Planning revenu vide : confirmé sur plusieurs passages avant d'écraser un planning qui avait des cours.
 
-const withCourses = { promotion: '3TI Web', scrapedAt: 'avant', courses: [{ key: 'ancien' }] };
+const withCourses = { promotion: '3TI Web', scrapedAt: 'avant', courses: [{ key: 'ancien', code: null, day: 0, start: '09:00', end: '11:00', weeks: [1] }] };
 const empty = async () => ({ ListeCours: [] });
 
 test("un planning vide n'écrase pas aussitôt un planning qui avait des cours", async () => {
