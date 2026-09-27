@@ -287,7 +287,7 @@ test('un planning écrit avant la datation des résolutions compte comme résolu
     }).courses[0],
     roomsByWeek: { 2: ['L320'], 10: ['L316'] }, // sans roomsResolvedAt : écrit par l'ancien scrap
   };
-  const scrapedAt = new Date(NOW - 2 * 24 * 60 * 60 * 1000).toISOString(); // il y a 2 jours
+  const scrapedAt = new Date(NOW - 2 * 60 * 60 * 1000).toISOString(); // il y a 2 heures
   const redis = fakeRedis({ initial: { [scheduleKey('3TI Web')]: { promotion: '3TI Web', scrapedAt, courses: [oldCourse] } } });
   await run({
     promotions: [promo('3TI Web')],

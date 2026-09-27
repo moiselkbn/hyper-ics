@@ -7,13 +7,15 @@
 // ambiguë : deux salles utilisées en même temps pour une même occurrence, ce qui est légitime).
 //
 // Ces requêtes coûtent cher (1,5 s d'attente chacune, jusqu'à 2 minutes pour une promotion) : on
-// reprend la résolution du scrap précédent tant que le créneau n'a pas changé, on ne demande jamais
-// deux fois la même plage, et on s'arrête à l'échéance fixée par l'appelant.
+// reprend la résolution du scrap précédent tant que le créneau n'a pas changé (vérifiée au-delà d'un
+// jour, voir `RESOLUTION_MAX_AGE_MS`), on ne demande jamais deux fois la même plage, et on s'arrête à
+// l'échéance fixée par l'appelant.
 import { formatWeeksRange, parseCourses } from './parse-schedule.mjs';
 
-// Au-delà, une résolution reprise telle quelle est refaite : les salles d'un créneau peuvent être
-// redistribuées entre ses semaines sans que la liste des salles ni celle des semaines ne change.
-export const RESOLUTION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+// Au-delà, une résolution reprise est vérifiée : les salles d'un créneau peuvent être redistribuées entre
+// ses semaines sans que la liste des salles ni celle des semaines ne change. La vérification coûte une
+// requête par salle (80 pour les 44 créneaux ambigus au 27/09) ; la dichotomie n'est refaite qu'en cas d'écart.
+export const RESOLUTION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 function sameSlot(a, b) {
   return a.day === b.day && a.start === b.start && a.end === b.end && (a.code ?? a.subject) === (b.code ?? b.subject);
@@ -49,6 +51,32 @@ async function resolveWeeks(fetchWeeks, course, weeks, rooms, progress) {
   return [...leftResolved, ...rightResolved];
 }
 
+// Semaines d'une résolution regroupées par salles, dans l'ordre des semaines.
+function weeksByRooms(roomsByWeek) {
+  const groups = new Map();
+  for (const [week, rooms] of Object.entries(roomsByWeek)) {
+    const key = [...rooms].sort().join('\n');
+    if (!groups.has(key)) groups.set(key, { rooms, weeks: [] });
+    groups.get(key).weeks.push(Number(week));
+  }
+  return [...groups.values()];
+}
+
+// Une requête par groupe de semaines de mêmes salles : la résolution tient si chacune renvoie exactement
+// ces salles. Angle mort : une semaine à deux salles simultanées qui en perd une, alors qu'une autre semaine
+// du groupe les garde toutes deux ; l'élève voit une salle en trop, jamais une salle fausse.
+// Faux (et `progress.complete` à false) si l'échéance tombe avant la fin.
+async function stillValid(fetchWeeks, course, roomsByWeek, progress) {
+  for (const group of weeksByRooms(roomsByWeek)) {
+    if (progress.clock() >= progress.deadline) {
+      progress.complete = false;
+      return false;
+    }
+    if (!sameSet(await roomsForWeeks(fetchWeeks, course, group.weeks), group.rooms)) return false;
+  }
+  return true;
+}
+
 function toRoomsByWeek(segments) {
   const roomsByWeek = {};
   for (const segment of segments) {
@@ -64,8 +92,8 @@ function toRoomsByWeek(segments) {
 // - `previous` : créneaux du planning précédent de la même promotion, dont on reprend la résolution ;
 // - `deadline` (heure `clock()` en ms) : au-delà, plus aucune requête ; le créneau garde son ancienne
 //   résolution, même datée, ou ses salles telles quelles, et sera affiné à un prochain scrap.
-// Renvoie les créneaux et le décompte `reused` (résolution reprise), `resolved` (affinée maintenant),
-// `deferred` (reportée faute de temps).
+// Renvoie les créneaux et le décompte `reused` (résolution reprise, vérifiée ou non), `resolved` (affinée
+// maintenant), `deferred` (reportée faute de temps).
 export async function resolveAmbiguousRooms(
   fetchRawWeeks,
   courses,
@@ -86,13 +114,25 @@ export async function resolveAmbiguousRooms(
     }
     const known = previous.find((candidate) => candidate.roomsByWeek && sameAmbiguity(candidate, course));
     const withKnown = known && { ...course, roomsByWeek: known.roomsByWeek, roomsResolvedAt: known.roomsResolvedAt };
-    const age = known?.roomsResolvedAt ? now - new Date(known.roomsResolvedAt) : Infinity;
-    if (withKnown && age < RESOLUTION_MAX_AGE_MS) {
-      result.courses.push(withKnown);
-      result.reused += 1;
-      continue;
-    }
     const progress = { deadline, clock, complete: true };
+    // Seule une résolution datée est complète : une partielle (sans date) est reprise par la dichotomie.
+    if (withKnown?.roomsResolvedAt) {
+      if (now - new Date(known.roomsResolvedAt) < RESOLUTION_MAX_AGE_MS) {
+        result.courses.push(withKnown);
+        result.reused += 1;
+        continue;
+      }
+      if (await stillValid(fetchWeeks, course, known.roomsByWeek, progress)) {
+        result.courses.push({ ...withKnown, roomsResolvedAt: now.toISOString() });
+        result.reused += 1;
+        continue;
+      }
+      if (!progress.complete) {
+        result.courses.push(withKnown);
+        result.deferred += 1;
+        continue;
+      }
+    }
     const segments = await resolveWeeks(fetchWeeks, course, course.weeks, course.rooms, progress);
     if (progress.complete) {
       result.courses.push({ ...course, roomsByWeek: toRoomsByWeek(segments), roomsResolvedAt: now.toISOString() });

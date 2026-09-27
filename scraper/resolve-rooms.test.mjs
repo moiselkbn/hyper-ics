@@ -122,14 +122,45 @@ test('une résolution fraîche du scrap précédent est reprise sans aucune requ
   assert.deepEqual([result.reused, result.resolved, result.deferred], [1, 0, 0]);
 });
 
-test('une résolution trop ancienne est refaite et datée du scrap en cours', async () => {
+test('une résolution ancienne toujours juste est vérifiée d’une requête par salle et redatée', async () => {
   const calls = [];
   const stale = new Date(NOW - RESOLUTION_MAX_AGE_MS - HOUR).toISOString();
-  const previous = [course({ roomsByWeek: { 2: ['L316'] }, roomsResolvedAt: stale })];
+  const previous = [course({ roomsByWeek: RESOLVED_WEEKS, roomsResolvedAt: stale })];
   const result = await resolveAmbiguousRooms(splitAtFirstLevel(calls), [course()], { previous, now: NOW });
   assert.deepEqual(calls, ['2..6', '10..14']);
   assert.deepEqual(result.courses[0].roomsByWeek, RESOLVED_WEEKS);
   assert.equal(result.courses[0].roomsResolvedAt, NOW.toISOString());
+  assert.deepEqual([result.reused, result.resolved, result.deferred], [1, 0, 0]);
+});
+
+test('salles échangées entre semaines : la vérification échoue et la résolution est refaite', async () => {
+  // Mêmes salles, mêmes semaines qu'avant, mais L316 avant et L320 après : invisible sans requête.
+  const calls = [];
+  const stale = new Date(NOW - RESOLUTION_MAX_AGE_MS - HOUR).toISOString();
+  const swapped = {
+    2: ['L316'], 3: ['L316'], 4: ['L316'], 5: ['L316'], 6: ['L316'],
+    10: ['L320'], 11: ['L320'], 12: ['L320'], 13: ['L320'], 14: ['L320'],
+  };
+  const previous = [course({ roomsByWeek: swapped, roomsResolvedAt: stale })];
+  const result = await resolveAmbiguousRooms(splitAtFirstLevel(calls), [course()], { previous, now: NOW });
+  assert.deepEqual(calls, ['2..6', '10..14']); // la plage vérifiée resert à la dichotomie
+  assert.deepEqual(result.courses[0].roomsByWeek, RESOLVED_WEEKS);
+  assert.equal(result.courses[0].roomsResolvedAt, NOW.toISOString());
+  assert.deepEqual([result.reused, result.resolved, result.deferred], [0, 1, 0]);
+});
+
+test('une résolution partielle (sans date) est reprise par la dichotomie, jamais simplement vérifiée', async () => {
+  const partial = { ...RESOLVED_WEEKS, 2: ['L320', 'L316'], 3: ['L320', 'L316'], 4: ['L320', 'L316'], 5: ['L320', 'L316'], 6: ['L320', 'L316'] };
+  const fetchRawWeeks = async (weeksRange) => {
+    if (weeksRange === '2..6') return rawWith({ dom: '[2..6]', rooms: ['L320', 'L316'] });
+    if (weeksRange === '10..14') return rawWith({ dom: '[10..14]', rooms: ['L316'] });
+    if (weeksRange === '2..4') return rawWith({ dom: '[2..4]', rooms: ['L320'] });
+    if (weeksRange === '5..6') return rawWith({ dom: '[5..6]', rooms: ['L316'] });
+    throw new Error(`plage inattendue : ${weeksRange}`);
+  };
+  const previous = [course({ roomsByWeek: partial })];
+  const result = await resolveAmbiguousRooms(fetchRawWeeks, [course()], { previous, now: NOW });
+  assert.deepEqual(result.courses[0].roomsByWeek[5], ['L316']);
   assert.equal(result.resolved, 1);
 });
 
@@ -166,7 +197,7 @@ test('échéance dépassée : aucune requête, l’ancienne résolution même da
   const options = { previous, now: NOW, deadline: 0, clock: () => 1 };
   const result = await resolveAmbiguousRooms(noRequest, [course(), course({ day: 4 })], options);
   assert.deepEqual(result.courses[0].roomsByWeek, RESOLVED_WEEKS); // reprise telle quelle
-  assert.equal(result.courses[0].roomsResolvedAt, stale); // toujours datée : sera refaite plus tard
+  assert.equal(result.courses[0].roomsResolvedAt, stale); // toujours datée : sera vérifiée plus tard
   assert.equal('roomsByWeek' in result.courses[1], false); // jamais résolu : salles telles quelles
   assert.equal(result.deferred, 2);
 });
