@@ -1,31 +1,32 @@
 // Surveillance des libellés de promotion d'Hyperplanning, d'un scrap au suivant.
 // Une promotion du périmètre qui disparaît laisse ses élèves sur un planning figé : l'API ne la suit d'elle-même que si
-// son nouveau libellé ne diffère que par la casse, les espaces ou les tirets (voir server/subscription.mjs,
-// withCurrentLabels). Pour tout le reste (vrai changement de nom, nouvelle promotion hors des motifs), il faut
-// intervenir à la main : on compare donc la liste complète des libellés, périmètre ou non, à celle du passage
+// son nouveau libellé ne diffère que par la casse, les espaces ou les tirets, ou s'il figure dans PROMOTION_RENAMES
+// (voir campus-scope.mjs, findRenamedPromotion). Pour tout le reste (vrai changement de nom, nouvelle promotion hors
+// des motifs), il faut intervenir à la main : on compare donc la liste complète des libellés, périmètre ou non, à celle du passage
 // précédent, et on prévient par mail. Chaque changement n'est signalé qu'une fois : la liste n'est réécrite qu'une
 // fois le mail parti.
 import { PROMOTION_LABELS_KEY } from '../shared/redis-keys.mjs';
-import { isInWatersideScope, simplifyPromotionLabel } from './campus-scope.mjs';
+import { findRenamedPromotion, isInWatersideScope } from './campus-scope.mjs';
 
 // `previous`, `current` : tous les libellés, du passage précédent et de celui-ci.
 // - `vanished` : promotions du périmètre disparues sans correspondance ; leurs élèves restent sur l'ancien planning ;
-// - `renamed` : [ancien, nouveau] au même libellé simplifié, déjà suivis par l'API ;
+// - `renamed` : [ancien, nouveau] au même libellé simplifié ou d'après PROMOTION_RENAMES, déjà suivis par l'API ;
 // - `added` : nouvelles promotions du périmètre, proposées d'elles-mêmes dans l'app ;
 // - `unknown` : nouveaux libellés hors périmètre, peut-être une promotion renommée ou un cursus sans motif.
 // Une promotion disparue hors du périmètre (Droit, Comptabilité…) n'est pas signalée.
-export function describePromotionChanges(previous, current) {
+export function describePromotionChanges(previous, current, { renames } = {}) {
+  const inScope = (label) => isInWatersideScope(label, { renames });
   const before = new Set(previous);
   const now = new Set(current);
-  const disappeared = previous.filter((label) => !now.has(label) && isInWatersideScope(label));
+  const disappeared = previous.filter((label) => !now.has(label) && inScope(label));
   const appeared = current.filter((label) => !before.has(label));
 
-  const inScope = current.filter(isInWatersideScope);
+  const listed = current.filter(inScope);
   const renamed = [];
   const vanished = [];
   for (const label of disappeared) {
-    const matches = inScope.filter((candidate) => simplifyPromotionLabel(candidate) === simplifyPromotionLabel(label));
-    if (matches.length === 1) renamed.push([label, matches[0]]);
+    const target = findRenamedPromotion(label, listed, { renames });
+    if (target) renamed.push([label, target]);
     else vanished.push(label);
   }
   const targets = new Set(renamed.map(([, label]) => label));
@@ -33,8 +34,8 @@ export function describePromotionChanges(previous, current) {
   return {
     vanished,
     renamed,
-    added: fresh.filter(isInWatersideScope),
-    unknown: fresh.filter((label) => !isInWatersideScope(label)),
+    added: fresh.filter(inScope),
+    unknown: fresh.filter((label) => !inScope(label)),
   };
 }
 
@@ -47,7 +48,8 @@ export function formatPromotionChanges({ vanished, renamed, added, unknown }) {
     sections.push(
       [
         'À vérifier : promotions disparues sans correspondance. Leurs élèves restent sur le dernier planning connu,',
-        'qui ne se met plus à jour.',
+        'qui ne se met plus à jour. Si elle a été renommée, ajouter la correspondance dans PROMOTION_RENAMES',
+        '(scraper/campus-scope.mjs).',
         ...vanished.map((label) => `- ${label}`),
       ].join('\n'),
     );

@@ -1,7 +1,14 @@
 // Lancer avec : node --test scraper/
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CURRICULA, getCurriculum, isInWatersideScope, simplifyPromotionLabel } from './campus-scope.mjs';
+import {
+  CURRICULA,
+  findRenamedPromotion,
+  getCurriculum,
+  isInWatersideScope,
+  PROMOTION_RENAMES,
+  simplifyPromotionLabel,
+} from './campus-scope.mjs';
 
 test('accepte les promotions de Waterside', () => {
   const inScope = [
@@ -74,4 +81,38 @@ test("aucune promotion n'appartient à deux cursus", () => {
     const matches = CURRICULA.filter(({ patterns }) => patterns.some((pattern) => pattern.test(simplifyPromotionLabel(label))));
     assert.equal(matches.length, 1, label);
   }
+});
+
+test('PROMOTION_RENAMES : chaque ligne part d’une promotion du périmètre vers un autre libellé', () => {
+  for (const [from, to] of Object.entries(PROMOTION_RENAMES)) {
+    assert.ok(isInWatersideScope(from), from);
+    assert.notEqual(from.trim(), to.trim(), from);
+  }
+});
+
+test('un libellé de la table entre dans le périmètre avec le cursus de l’ancien, même au bout d’une chaîne', () => {
+  const renames = { '3TI Web': '3TI Digital', '3TI Digital': 'TI3 Numérique' };
+  assert.equal(getCurriculum('3TI Digital', { renames })?.id, 'graphic-technics');
+  assert.equal(getCurriculum('TI3 Numérique', { renames })?.id, 'graphic-technics');
+  assert.equal(isInWatersideScope('3TI Digital'), false); // sans la ligne, hors périmètre
+  // Une boucle dans la table ne bloque pas.
+  assert.equal(getCurriculum('X', { renames: { X: 'Y', Y: 'X' } }), undefined);
+  // Un libellé ne tombe jamais sur une propriété héritée.
+  assert.equal(getCurriculum('constructor', { renames: {} }), undefined);
+});
+
+test('findRenamedPromotion : la table d’abord, en suivant la chaîne jusqu’à un libellé listé', () => {
+  const renames = { '3TI Web': '3TI Digital', '3TI Digital': 'TI3 Numérique' };
+  assert.equal(findRenamedPromotion('3TI Web', ['3TI Digital', '2TE'], { renames }), '3TI Digital');
+  assert.equal(findRenamedPromotion('3TI Web', ['TI3 Numérique', '2TE'], { renames }), 'TI3 Numérique');
+  // La table l'emporte sur le libellé simplifié.
+  assert.equal(findRenamedPromotion('3TI Web', ['3TI Digital', '3TI-WEB'], { renames }), '3TI Digital');
+  assert.equal(findRenamedPromotion('X', ['Z'], { renames: { X: 'Y', Y: 'X' } }), null);
+  assert.equal(findRenamedPromotion('constructor', ['2TE'], { renames: {} }), null);
+});
+
+test('findRenamedPromotion : sinon, l’unique libellé listé au même libellé simplifié', () => {
+  assert.equal(findRenamedPromotion('3TI Web', ['3TI-WEB', '2TE'], { renames: {} }), '3TI-WEB');
+  assert.equal(findRenamedPromotion('3TI Web', ['3TI-WEB', '3TIWEB'], { renames: {} }), null);
+  assert.equal(findRenamedPromotion('3TI Web', ['3TI Digital'], { renames: {} }), null);
 });

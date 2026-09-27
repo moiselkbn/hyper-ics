@@ -229,6 +229,14 @@ test('withCurrentLabels garde le libellé enregistré sans correspondance sûre'
   assert.deepEqual(withCurrentLabels(promotions, []), promotions);
 });
 
+test('withCurrentLabels suit une promotion de la table des renommages', () => {
+  const promotions = [{ label: '3TI Web', mode: 'all-except', keys: ['c'] }];
+  assert.deepEqual(withCurrentLabels(promotions, ['3TI Digital'], { renames: { '3TI Web': '3TI Digital' } }), [
+    { label: '3TI Digital', mode: 'all-except', keys: ['c'] },
+  ]);
+  assert.deepEqual(withCurrentLabels(promotions, ['3TI Digital'], { renames: {} }), promotions);
+});
+
 test('withCurrentLabels ne fait jamais de deux promotions de l’abonnement la même', () => {
   const promotions = [{ label: '3TI Web', mode: 'all-except', keys: [] }, { label: '3TI-Web', mode: 'only', keys: ['x'] }];
   assert.deepEqual(withCurrentLabels(promotions, ['3TI WEB']), [

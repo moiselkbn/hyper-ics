@@ -13,7 +13,7 @@
 // été renommée depuis est traduite (voir withCurrentKeys), comme une promotion renommée (voir withCurrentLabels).
 //  - `all-except` : tous les cours de la promotion, présents et à venir, sauf ceux de `keys` (décochés) ;
 //  - `only` : seulement les cours de `keys` (cochés).
-import { simplifyPromotionLabel } from '../scraper/campus-scope.mjs';
+import { findRenamedPromotion } from '../scraper/campus-scope.mjs';
 import { SCHEDULE_INDEX_KEY, scheduleKey, subscriptionKey } from '../shared/redis-keys.mjs';
 import { generateToken, hashToken, isTokenFormat } from '../shared/token.mjs';
 import { HttpError, jsonNoStore, readJsonBody } from './http.mjs';
@@ -97,23 +97,17 @@ export function withCurrentKeys(promotions, records) {
   });
 }
 
-// Libellés enregistrés -> libellés actuels : si l'école renomme une promotion en changeant la casse, les espaces ou
-// les tirets (« 3TI Web » -> « 3TI-WEB »), l'ancien libellé sort de l'index et son planning n'est plus mis à jour.
-// On suit alors la promotion de l'index qui a le même libellé simplifié (voir scraper/campus-scope.mjs), sans
-// toucher à l'abonnement. Un libellé encore listé, ou sans correspondance unique, reste tel quel : mieux vaut un
-// planning figé qu'une promotion qui n'est pas celle de l'élève. `listed` : libellés de l'index.
-export function withCurrentLabels(promotions, listed) {
+// Libellés enregistrés -> libellés actuels : une promotion renommée par l'école sort de l'index, et son planning
+// n'est plus mis à jour. On suit alors son nouveau libellé (voir scraper/campus-scope.mjs, findRenamedPromotion :
+// table des renommages, puis même libellé simplifié), sans toucher à l'abonnement. Un libellé encore listé, ou sans
+// correspondance sûre, reste tel quel. `listed` : libellés de l'index.
+export function withCurrentLabels(promotions, listed, { renames } = {}) {
   const known = new Set(listed);
-  const bySimplified = new Map(); // libellé simplifié -> libellé listé, null si plusieurs le partagent
-  for (const label of listed) {
-    const simplified = simplifyPromotionLabel(label);
-    bySimplified.set(simplified, bySimplified.has(simplified) ? null : label);
-  }
   // Deux promotions de l'abonnement ne doivent jamais devenir la même.
   const used = new Set(promotions.map((entry) => entry.label).filter((label) => known.has(label)));
   return promotions.map((entry) => {
     if (known.has(entry.label)) return entry;
-    const label = bySimplified.get(simplifyPromotionLabel(entry.label));
+    const label = findRenamedPromotion(entry.label, listed, { renames });
     if (!label || used.has(label)) return entry;
     used.add(label);
     return { ...entry, label };

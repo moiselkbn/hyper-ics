@@ -62,6 +62,14 @@ test('describePromotionChanges : deux correspondances possibles, la disparition 
   });
 });
 
+test('describePromotionChanges : renommage de la table, déjà suivi', () => {
+  const renames = { '3TI Web': '3TI Digital' };
+  assert.deepEqual(describePromotionChanges(['3TI Web', '2TE'], ['3TI Digital', '2TE'], { renames }), {
+    ...NONE,
+    renamed: [['3TI Web', '3TI Digital']],
+  });
+});
+
 test('formatPromotionChanges met ce qui est à vérifier en premier', () => {
   const text = formatPromotionChanges({
     vanished: ['3TI Web'],
