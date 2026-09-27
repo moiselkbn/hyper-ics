@@ -185,6 +185,27 @@ test('une matière renommée après l’abonnement garde son choix, décochée c
   assert.deepEqual(summaries(await feedOf(redis, token)).sort(), ['Anglais (1TI)', 'Réseaux informatiques (2TI)']);
 });
 
+test('une promotion renommée par casse ou tirets reste suivie, sélection comprise', async () => {
+  const redis = inMemoryRedis([
+    record('3TI Web', [slot({ subject: 'Typographie', code: 'TI-301' }), slot({ subject: 'Anglais', code: 'TI-302', day: 1 })]),
+  ]);
+  const token = await subscribe(redis, [{ label: '3TI Web', checked: [courseKey('Typographie')], unchecked: [courseKey('Anglais')] }]);
+
+  // L'école renomme la promotion : le scrap écrit le nouveau planning et l'index ne liste plus l'ancien libellé,
+  // dont le planning reste en base, figé.
+  const renamed = record('3TI-WEB', [
+    slot({ subject: 'Typographie', code: 'TI-301', day: 2 }),
+    slot({ subject: 'Anglais', code: 'TI-302', day: 1 }),
+    slot({ subject: 'Mise en page', code: 'TI-303', day: 3 }),
+  ]);
+  rescrap(redis, renamed);
+  redis.store.set(SCHEDULE_INDEX_KEY, JSON.stringify({ promotions: [{ label: '3TI-WEB' }] }));
+
+  const ics = await feedOf(redis, token);
+  assert.deepEqual(summaries(ics).sort(), ['Mise en page', 'Typographie']);
+  assert.match(ics, /DTSTART;TZID=Europe\/Brussels:20260916T090000/); // mercredi : le nouveau planning
+});
+
 test('getFeedIcs ignore une promotion qui aurait disparu de Redis entre-temps', async () => {
   const redis = inMemoryRedis([record('1AT', [slot({ subject: 'Tissage' })]), record('2AT', [slot({ subject: 'Teinture' })])]);
   const token = await subscribe(redis, [

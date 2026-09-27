@@ -12,6 +12,7 @@ import {
   isLessonFollowed,
   parseSelection,
   updateSubscription,
+  withCurrentLabels,
 } from './subscription.mjs';
 
 const NOW = new Date('2026-09-24T10:00:00.000Z');
@@ -206,6 +207,52 @@ test('getSubscription ne renvoie pas une promotion sortie de l’index depuis', 
   redis.store.set(SCHEDULE_INDEX_KEY, JSON.stringify(index('3TI Web')[SCHEDULE_INDEX_KEY]));
   const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
   assert.deepEqual(await response.json(), { promotions: [{ label: '3TI Web', mode: 'all-except', keys: [] }] });
+});
+
+test('withCurrentLabels suit une promotion renommée par casse, espaces ou tirets', () => {
+  const promotions = [{ label: '3TI Web', mode: 'all-except', keys: ['c'] }, { label: '2TI Web', mode: 'only', keys: ['x'] }];
+  assert.deepEqual(withCurrentLabels(promotions, ['3TI-WEB', '2TI Web']), [
+    { label: '3TI-WEB', mode: 'all-except', keys: ['c'] },
+    { label: '2TI Web', mode: 'only', keys: ['x'] },
+  ]);
+});
+
+test('withCurrentLabels garde le libellé enregistré sans correspondance sûre', () => {
+  const promotions = [{ label: '3TI Web', mode: 'all-except', keys: [] }];
+  // Encore listé : jamais traduit, même si une autre promotion a la même forme simplifiée.
+  assert.deepEqual(withCurrentLabels(promotions, ['3TI Web', '3TI-WEB']), promotions);
+  // Vrai changement de nom : aucune correspondance.
+  assert.deepEqual(withCurrentLabels(promotions, ['3TI Digital']), promotions);
+  // Deux candidates : ambigu.
+  assert.deepEqual(withCurrentLabels(promotions, ['3TI-WEB', '3TIWEB']), promotions);
+  // Index absent (avant le premier scrap).
+  assert.deepEqual(withCurrentLabels(promotions, []), promotions);
+});
+
+test('withCurrentLabels ne fait jamais de deux promotions de l’abonnement la même', () => {
+  const promotions = [{ label: '3TI Web', mode: 'all-except', keys: [] }, { label: '3TI-Web', mode: 'only', keys: ['x'] }];
+  assert.deepEqual(withCurrentLabels(promotions, ['3TI WEB']), [
+    { label: '3TI WEB', mode: 'all-except', keys: [] },
+    { label: '3TI-Web', mode: 'only', keys: ['x'] },
+  ]);
+  assert.deepEqual(withCurrentLabels(promotions, ['3TI-Web']), promotions);
+});
+
+test('getSubscription renvoie une promotion renommée sous son nouveau libellé, avec ses clés à jour', async () => {
+  const redis = inMemoryRedis(index('3TI Web', '2TI Web'));
+  const body = { promotions: [entry('3TI Web', ['a', 'b'], ['c']), entry('2TI Web', ['x'], ['y', 'z'])] };
+  const { token } = await (await createSubscription(redis, post(body))).json();
+  // L'école renomme « 3TI Web » : l'ancien planning reste en base, figé.
+  redis.store.set(SCHEDULE_INDEX_KEY, JSON.stringify(index('3TI-WEB', '2TI Web')[SCHEDULE_INDEX_KEY]));
+  redis.store.set(scheduleKey('3TI Web'), JSON.stringify({ promotion: '3TI Web', courses: [], renamedKeys: { c: 'figé' } }));
+  redis.store.set(scheduleKey('3TI-WEB'), JSON.stringify({ promotion: '3TI-WEB', courses: [], renamedKeys: { c: 'c2' } }));
+  const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
+  assert.deepEqual(await response.json(), {
+    promotions: [
+      { label: '3TI-WEB', mode: 'all-except', keys: ['c2'] },
+      { label: '2TI Web', mode: 'only', keys: ['x'] },
+    ],
+  });
 });
 
 test('getSubscription renvoie les clés à jour des matières renommées depuis, pour les recocher', async () => {

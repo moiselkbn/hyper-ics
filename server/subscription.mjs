@@ -10,9 +10,10 @@
 // Ce qui est stocké : par promotion, un mode et des clés de matière (voir shared/course-key.mjs), jamais les
 // identifiants de cours, qui changent quand un cours reçoit un code. Le flux se recalcule à chaque lecture à
 // partir du dernier scrap : une nouvelle semaine d'un cours suivi y entre toute seule, et une clé dont la matière a
-// été renommée depuis est traduite (voir withCurrentKeys).
+// été renommée depuis est traduite (voir withCurrentKeys), comme une promotion renommée (voir withCurrentLabels).
 //  - `all-except` : tous les cours de la promotion, présents et à venir, sauf ceux de `keys` (décochés) ;
 //  - `only` : seulement les cours de `keys` (cochés).
+import { simplifyPromotionLabel } from '../scraper/campus-scope.mjs';
 import { SCHEDULE_INDEX_KEY, scheduleKey, subscriptionKey } from '../shared/redis-keys.mjs';
 import { generateToken, hashToken, isTokenFormat } from '../shared/token.mjs';
 import { HttpError, jsonNoStore, readJsonBody } from './http.mjs';
@@ -96,10 +97,51 @@ export function withCurrentKeys(promotions, records) {
   });
 }
 
+// Libellés enregistrés -> libellés actuels : si l'école renomme une promotion en changeant la casse, les espaces ou
+// les tirets (« 3TI Web » -> « 3TI-WEB »), l'ancien libellé sort de l'index et son planning n'est plus mis à jour.
+// On suit alors la promotion de l'index qui a le même libellé simplifié (voir scraper/campus-scope.mjs), sans
+// toucher à l'abonnement. Un libellé encore listé, ou sans correspondance unique, reste tel quel : mieux vaut un
+// planning figé qu'une promotion qui n'est pas celle de l'élève. `listed` : libellés de l'index.
+export function withCurrentLabels(promotions, listed) {
+  const known = new Set(listed);
+  const bySimplified = new Map(); // libellé simplifié -> libellé listé, null si plusieurs le partagent
+  for (const label of listed) {
+    const simplified = simplifyPromotionLabel(label);
+    bySimplified.set(simplified, bySimplified.has(simplified) ? null : label);
+  }
+  // Deux promotions de l'abonnement ne doivent jamais devenir la même.
+  const used = new Set(promotions.map((entry) => entry.label).filter((label) => known.has(label)));
+  return promotions.map((entry) => {
+    if (known.has(entry.label)) return entry;
+    const label = bySimplified.get(simplifyPromotionLabel(entry.label));
+    if (!label || used.has(label)) return entry;
+    used.add(label);
+    return { ...entry, label };
+  });
+}
+
 // L'index ne liste que des promotions qui ont un planning en base.
+const listedLabels = (index) => (index?.promotions ?? []).map((entry) => entry.label);
+
 async function knownPromotions(redis) {
-  const index = await redis.getJson(SCHEDULE_INDEX_KEY);
-  return new Set((index?.promotions ?? []).map((entry) => entry.label));
+  return new Set(listedLabels(await redis.getJson(SCHEDULE_INDEX_KEY)));
+}
+
+// Promotions de l'abonnement sous leur libellé actuel (voir withCurrentLabels), leurs plannings dans le même ordre
+// (null pour une promotion absente de Redis) et les libellés de l'index. L'index est lu avec les plannings, en une
+// requête : le flux est interrogé souvent. Une seconde n'a lieu que si une promotion a été renommée.
+export async function readFollowedSchedules(redis, promotions) {
+  const [index, ...records] = await redis.mgetJson([SCHEDULE_INDEX_KEY, ...promotions.map((entry) => scheduleKey(entry.label))]);
+  const listed = listedLabels(index);
+  const current = withCurrentLabels(promotions, listed);
+  const renamed = current.flatMap((entry, position) => (entry.label === promotions[position].label ? [] : [position]));
+  if (renamed.length > 0) {
+    const fresh = await redis.mgetJson(renamed.map((position) => scheduleKey(current[position].label)));
+    renamed.forEach((position, order) => {
+      records[position] = fresh[order];
+    });
+  }
+  return { promotions: current, records, listed };
 }
 
 async function assertPromotionsExist(redis, labels) {
@@ -145,15 +187,15 @@ export async function createSubscription(redis, request, now = new Date()) {
   return jsonNoStore({ token });
 }
 
-// Une promotion sortie de l'index depuis (hors périmètre, renommée) n'est pas renvoyée : l'élève ne pourrait ni la
-// voir ni la décocher, et le PUT la refuserait. Les clés sont renvoyées à jour des renommages de matière, pour
-// recocher le cours sous son nouveau libellé.
+// Une promotion renommée est renvoyée sous son libellé actuel : l'élève la retrouve cochée, et le PUT enregistre
+// ce libellé. Une promotion sortie de l'index sans correspondance (hors périmètre, vrai changement de nom) n'est pas
+// renvoyée : l'élève ne pourrait ni la voir ni la décocher, et le PUT la refuserait. Les clés sont renvoyées à jour
+// des renommages de matière, pour recocher le cours sous son nouveau libellé.
 export async function getSubscription(redis, url) {
   const { subscription } = await findSubscription(redis, url);
-  const known = await knownPromotions(redis);
-  const promotions = subscription.promotions.filter((entry) => known.has(entry.label));
-  const records = promotions.length > 0 ? await redis.mgetJson(promotions.map((entry) => scheduleKey(entry.label))) : [];
-  return jsonNoStore({ promotions: withCurrentKeys(promotions, records) });
+  const { promotions, records, listed } = await readFollowedSchedules(redis, subscription.promotions);
+  const known = new Set(listed);
+  return jsonNoStore({ promotions: withCurrentKeys(promotions.filter((entry) => known.has(entry.label)), records) });
 }
 
 export async function updateSubscription(redis, request, now = new Date()) {
