@@ -1,7 +1,7 @@
 // Lancer avec : node --test scraper/
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CURRICULA, getCurriculum, isInWatersideScope } from './campus-scope.mjs';
+import { CURRICULA, getCurriculum, isInWatersideScope, simplifyPromotionLabel } from './campus-scope.mjs';
 
 test('accepte les promotions de Waterside', () => {
   const inScope = [
@@ -19,11 +19,32 @@ test('refuse les autres promotions', () => {
   const outOfScope = [
     'Droit 2', 'Comptabilité 1 (soir)', 'Informatique 3', 'Assistant 1', // hors campus
     '1TLM-1', '3TLM-cyto', // laboratoire médical
-    '1TGRD2 (OUT)', // groupe sorti
+    '1TGRD2 (OUT)', '1TGRD2(OUT)', // groupe sorti
     'SMOD', // sans chiffre : ambigu, exclu par prudence
     '', '1AT extra',
   ];
   for (const label of outOfScope) assert.equal(isInWatersideScope(label), false, label);
+});
+
+test("reste reconnue si l'école change la casse, les espaces, les tirets ou les accents", () => {
+  const renamed = {
+    '3TI-WEB': 'graphic-technics',
+    '3ti web': 'graphic-technics',
+    '3TI 3D Video': 'graphic-technics',
+    '2TI Édition': 'graphic-technics',
+    '3PUB-A': 'advertising',
+    '1 TGR C1': 'graphic-technics',
+    '2-EA': 'applied-electronics',
+    ' 1sma ': 'fashion-design',
+  };
+  for (const [label, id] of Object.entries(renamed)) assert.equal(getCurriculum(label)?.id, id, label);
+});
+
+test('simplifyPromotionLabel ne garde que les lettres, chiffres et parenthèses, en majuscules', () => {
+  assert.equal(simplifyPromotionLabel('3TI 3D-Video'), '3TI3DVIDEO');
+  assert.equal(simplifyPromotionLabel('3TLM-c.c.'), '3TLMCC');
+  assert.equal(simplifyPromotionLabel('1TGRD2 (OUT)'), '1TGRD2(OUT)');
+  assert.equal(simplifyPromotionLabel('Comptabilité 1 (soir)'), 'COMPTABILITE1(SOIR)');
 });
 
 test('getCurriculum renvoie le cursus de la promotion', () => {
@@ -50,7 +71,7 @@ test('chaque cursus a un identifiant et un intitulé uniques', () => {
 test("aucune promotion n'appartient à deux cursus", () => {
   const labels = ['2EA', '1EAA', '1TGRA', '1TGRC2', '2TE', '3TI Web', '1AT', '1PUBB', '3PUB B', '1SMA', '3SMC'];
   for (const label of labels) {
-    const matches = CURRICULA.filter(({ patterns }) => patterns.some((pattern) => pattern.test(label)));
+    const matches = CURRICULA.filter(({ patterns }) => patterns.some((pattern) => pattern.test(simplifyPromotionLabel(label))));
     assert.equal(matches.length, 1, label);
   }
 });
