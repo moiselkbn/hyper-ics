@@ -51,12 +51,6 @@ export function App() {
   // échec d'enregistrement : la tentative suivante met à jour ce même abonnement au lieu d'en créer un second, que
   // l'élève aurait pu ajouter en double.
   const [token, setToken] = useState<string | null>(null);
-  // Sélection enregistrée dans l'abonnement : au retour sur le récapitulatif, sert à savoir si l'élève a changé
-  // d'avis (comparaison par référence, les deux Set ne changent que via un toggle).
-  const [savedSelection, setSavedSelection] = useState<{
-    promotions: ReadonlySet<string>;
-    lessons: ReadonlySet<string>;
-  } | null>(null);
 
   // Les écrans après le choix des cours ne s'ouvrent qu'une fois ceux-ci chargés.
   const loadedLessons = lessons.status === 'ready' ? lessons.data : [];
@@ -138,7 +132,6 @@ export function App() {
         showPage(savedToken);
       },
     );
-    setSavedSelection({ promotions: selected, lessons: selectedLessons });
   }
 
   // « Supprimer mon calendrier », confirmé dans la fenêtre (qui affiche l'attente et l'échec). Ensuite, plus rien ne
@@ -151,7 +144,6 @@ export function App() {
     setToken(null);
     setSelected(new Set());
     setSelectedLessons(new Set());
-    setSavedSelection(null);
     setScreen('deleted');
   }
 
@@ -255,16 +247,6 @@ export function App() {
         editing={editing}
         onBack={() => setScreen('lesson-choice')}
         onNext={() => {
-          // Sélection inchangée depuis le dernier enregistrement : inutile de rejouer l'animation.
-          const unchanged =
-            saved.status === 'ready' &&
-            savedSelection !== null &&
-            savedSelection.promotions === selected &&
-            savedSelection.lessons === selectedLessons;
-          if (unchanged) {
-            setScreen('feed-ready');
-            return;
-          }
           requestSave();
           // Un calendrier qui existe déjà est seulement mis à jour : pas d'animation de génération.
           setScreen(editing ? 'feed-ready' : 'generation');

@@ -116,9 +116,7 @@ function SendToComputer({ appName, tabLabel, pageUrl }: { appName: string; tabLa
 type FeedReadyProps = {
   pageUrl: string;
   feedUrl: string;
-  // Juste après la création : retour au récapitulatif.
-  onBack?: () => void;
-  // Page de l'élève, rouverte depuis son lien : à la place du retour, modifier ses cours.
+  // Page de l'élève : modifier ses cours.
   onEdit?: () => void;
   // Sélection tout juste modifiée depuis la page de l'élève.
   updated?: boolean;
@@ -128,7 +126,7 @@ type FeedReadyProps = {
 
 // Dernier écran : l'abonnement est prêt, l'élève l'ajoute à son calendrier.
 // Le flux se met à jour tout seul : c'est un abonnement, jamais un fichier importé une fois pour toutes.
-export function FeedReady({ pageUrl, feedUrl, onBack, onEdit, updated = false, onDelete }: FeedReadyProps) {
+export function FeedReady({ pageUrl, feedUrl, onEdit, updated = false, onDelete }: FeedReadyProps) {
   const [app, setApp] = useState<CalendarApp>(() => detectCalendarApp());
   const [keepMessage, setKeepMessage] = useState('');
   // Après une modification, l'ajout au calendrier est replié : l'élève l'a normalement déjà fait, et l'ajouter une
@@ -148,7 +146,7 @@ export function FeedReady({ pageUrl, feedUrl, onBack, onEdit, updated = false, o
 
   return (
     <div className="feed-ready">
-      <AppHeader onBack={onBack} onEdit={onEdit} />
+      <AppHeader onEdit={onEdit} />
       <Stepper total={4} current={4} />
 
       <h1 className="feed-ready__title">
