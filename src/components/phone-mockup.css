@@ -6,8 +6,7 @@
   flex: none;
   width: 300px;
   height: 609px;
-  font-family: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
-  color: #fff;
+  color: #000;
 }
 
 .phone-mockup__side-button {
@@ -76,14 +75,9 @@
   inset: 12.69px;
   overflow: hidden;
   border-radius: 38.077px;
-}
-
-.phone-mockup__wallpaper {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top;
+  background: #fff;
+  /* Référence des unités cqi pour la vue affichée à l'écran. */
+  container-type: inline-size;
 }
 
 .phone-mockup__island {
@@ -120,10 +114,10 @@
   width: 12.2px;
   height: 7.6px;
   background:
-    linear-gradient(#fff, #fff) 0 4.85px / 2.3px 2.77px,
-    linear-gradient(#fff, #fff) 3.23px 3.46px / 2.3px 4.15px,
-    linear-gradient(#fff, #fff) 6.69px 1.85px / 2.3px 5.77px,
-    linear-gradient(#fff, #fff) 9.92px 0 / 2.3px 7.6px;
+    linear-gradient(#000, #000) 0 4.85px / 2.3px 2.77px,
+    linear-gradient(#000, #000) 3.23px 3.46px / 2.3px 4.15px,
+    linear-gradient(#000, #000) 6.69px 1.85px / 2.3px 5.77px,
+    linear-gradient(#000, #000) 9.92px 0 / 2.3px 7.6px;
   background-repeat: no-repeat;
   opacity: 0.9;
 }
@@ -136,7 +130,7 @@
   position: relative;
   width: 14.8px;
   height: 6.7px;
-  border: 0.692px solid rgba(255, 255, 255, 0.6);
+  border: 0.692px solid rgba(0, 0, 0, 0.4);
   border-radius: 5px;
 }
 
@@ -145,26 +139,5 @@
   position: absolute;
   inset: 0.46px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.phone-mockup__lock {
-  position: absolute;
-  top: 60px;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.phone-mockup__date {
-  font-size: 14.77px;
-  line-height: normal;
-}
-
-.phone-mockup__time {
-  font-size: 62.77px;
-  font-weight: 300;
-  line-height: normal;
+  background: #000;
 }

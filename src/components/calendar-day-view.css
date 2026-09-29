@@ -1,0 +1,318 @@
+/* Valeurs en points iOS : la maquette Figma est un iPhone de 430 pt de large (Calendrier, vue jour).
+   --pt suit la largeur de l'écran qui contient la vue (container-type: inline-size). */
+.calendar-day-view {
+  --pt: calc(100cqi / 430);
+  --hour-height: calc(50 * var(--pt));
+  --label-column: calc(52 * var(--pt));
+  --red: #ff382b;
+  --grey: #8e8e93;
+  --separator: #c7c7cc;
+  --event-bg: rgba(27, 173, 248, 0.2);
+  --event-border: #1badf8;
+  --event-text: #106895;
+  --event-details: #00a8ff;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+  font-family: var(--font-body);
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* En-tête : place de la barre d'état, actions, semaine, date du jour. */
+.calendar-day-view__header {
+  flex: none;
+  border-bottom: calc(0.33 * var(--pt)) solid var(--separator);
+}
+
+.calendar-day-view__status-bar {
+  height: calc(54 * var(--pt));
+}
+
+.calendar-day-view__actions {
+  position: relative;
+  height: calc(44 * var(--pt));
+}
+
+.calendar-day-view__back {
+  position: absolute;
+  top: 50%;
+  left: calc(12 * var(--pt));
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  color: var(--red);
+  font-size: calc(17 * var(--pt));
+  line-height: calc(22 * var(--pt));
+  letter-spacing: calc(-0.43 * var(--pt));
+  transform: translateY(-50%);
+}
+
+.calendar-day-view__back-icon {
+  height: calc(19 * var(--pt));
+}
+
+.calendar-day-view__icons {
+  position: absolute;
+  top: 0;
+  right: calc(20 * var(--pt));
+  display: flex;
+  gap: calc(30 * var(--pt));
+  height: 100%;
+}
+
+.calendar-day-view__icon {
+  align-self: center;
+  width: calc(25 * var(--pt));
+  object-fit: contain;
+}
+
+.calendar-day-view__icon--list {
+  height: calc(16 * var(--pt));
+}
+
+.calendar-day-view__icon--search {
+  height: calc(20 * var(--pt));
+}
+
+.calendar-day-view__icon--plus {
+  height: calc(18 * var(--pt));
+}
+
+.calendar-day-view__week {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 calc(20 * var(--pt));
+}
+
+.calendar-day-view__weekday {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(7 * var(--pt));
+  padding-top: calc(2 * var(--pt));
+}
+
+.calendar-day-view__weekday--weekend {
+  color: var(--grey);
+}
+
+.calendar-day-view__weekday-letter {
+  font-size: calc(10 * var(--pt));
+  font-weight: 600;
+  line-height: calc(12 * var(--pt));
+  letter-spacing: calc(0.16 * var(--pt));
+  text-transform: uppercase;
+}
+
+.calendar-day-view__weekday-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(35 * var(--pt));
+  height: calc(35 * var(--pt));
+  padding-bottom: calc(1 * var(--pt));
+  border-radius: 50%;
+  font-size: calc(18 * var(--pt));
+  line-height: calc(23 * var(--pt));
+  letter-spacing: calc(-0.44 * var(--pt));
+}
+
+.calendar-day-view__weekday--today .calendar-day-view__weekday-number {
+  background: var(--red);
+  color: #fff;
+  font-weight: 600;
+}
+
+.calendar-day-view__date {
+  display: block;
+  text-align: center;
+  padding-bottom: calc(11 * var(--pt));
+  font-size: calc(16 * var(--pt));
+  line-height: calc(21 * var(--pt));
+  letter-spacing: calc(-0.41 * var(--pt));
+}
+
+/* Grille des heures : chaque élément est placé par --offset (heures depuis le haut). */
+.calendar-day-view__grid {
+  position: relative;
+  flex: none;
+  margin-top: calc(10 * var(--pt));
+}
+
+.calendar-day-view__hour {
+  position: absolute;
+  top: calc(var(--offset) * var(--hour-height));
+  left: 0;
+  right: 0;
+}
+
+.calendar-day-view__hour::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--label-column);
+  right: 0;
+  border-top: calc(0.66 * var(--pt)) solid var(--separator);
+}
+
+.calendar-day-view__hour-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--label-column);
+  padding-right: calc(5 * var(--pt));
+  color: var(--grey);
+  font-size: calc(11 * var(--pt));
+  font-weight: 600;
+  line-height: calc(13 * var(--pt));
+  letter-spacing: calc(0.08 * var(--pt));
+  text-align: right;
+  transform: translateY(-50%);
+}
+
+.calendar-day-view__event {
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--offset) * var(--hour-height) + 1 * var(--pt));
+  left: calc(55 * var(--pt));
+  right: calc(2 * var(--pt));
+  height: calc(var(--duration) * var(--hour-height) - 2 * var(--pt));
+  display: flex;
+  flex-direction: column;
+  gap: calc(2.67 * var(--pt));
+  padding: calc(5.33 * var(--pt)) calc(5.33 * var(--pt)) calc(5.33 * var(--pt)) calc(10.67 * var(--pt));
+  overflow: hidden;
+  border-radius: calc(5 * var(--pt));
+  background: var(--event-bg);
+  letter-spacing: calc(0.06 * var(--pt));
+}
+
+/* Liseré : barre arrondie détachée des bords, pas une bordure. */
+.calendar-day-view__event::before {
+  content: '';
+  position: absolute;
+  top: calc(4 * var(--pt));
+  bottom: calc(4 * var(--pt));
+  left: calc(3.56 * var(--pt));
+  width: calc(2.67 * var(--pt));
+  border-radius: calc(20 * var(--pt));
+  background: var(--event-border);
+}
+
+.calendar-day-view__event-title {
+  color: var(--event-text);
+  font-size: calc(13.33 * var(--pt));
+  font-weight: 600;
+  line-height: calc(13 * var(--pt));
+}
+
+.calendar-day-view__event-details {
+  display: flex;
+  flex-direction: column;
+  color: var(--event-details);
+  font-size: calc(9.33 * var(--pt));
+  line-height: 1.2;
+}
+
+/* Ligne « maintenant » : libellé rouge dans la colonne des heures, point puis trait. */
+.calendar-day-view__now {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--offset) * var(--hour-height));
+  left: 0;
+  right: 0;
+}
+
+.calendar-day-view__now::after {
+  content: '';
+  position: absolute;
+  top: calc(-0.5 * var(--pt));
+  left: calc(50 * var(--pt));
+  right: 0;
+  height: calc(1 * var(--pt));
+  background: var(--red);
+}
+
+.calendar-day-view__now-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(47 * var(--pt));
+  color: var(--red);
+  font-size: calc(10 * var(--pt));
+  font-weight: 600;
+  line-height: calc(12 * var(--pt));
+  letter-spacing: calc(0.12 * var(--pt));
+  text-align: right;
+  transform: translateY(-50%);
+}
+
+.calendar-day-view__now-dot {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: calc(49 * var(--pt));
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border: calc(0.5 * var(--pt)) solid #fff;
+  border-radius: 50%;
+  background: var(--red);
+  transform: translateY(-50%);
+}
+
+/* Barre d'onglets du bas et barre d'accueil, posées sur la grille. */
+.calendar-day-view__footer {
+  position: absolute;
+  z-index: 3;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-top: calc(5 * var(--pt));
+  background: #fff;
+}
+
+.calendar-day-view__links {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(44 * var(--pt));
+  padding: 0 calc(20 * var(--pt));
+}
+
+.calendar-day-view__link {
+  color: var(--red);
+  font-size: calc(17 * var(--pt));
+  line-height: calc(22 * var(--pt));
+  letter-spacing: calc(-0.43 * var(--pt));
+  white-space: nowrap;
+}
+
+.calendar-day-view__link--center {
+  position: absolute;
+  left: calc(50% - 22.5 * var(--pt));
+  transform: translateX(-50%);
+}
+
+.calendar-day-view__home-bar {
+  position: relative;
+  height: calc(34 * var(--pt));
+}
+
+.calendar-day-view__home-bar::after {
+  content: '';
+  position: absolute;
+  bottom: calc(8 * var(--pt));
+  left: 50%;
+  width: calc(154 * var(--pt));
+  height: calc(5 * var(--pt));
+  border-radius: calc(100 * var(--pt));
+  background: #000;
+  transform: translateX(-50%);
+}

@@ -1,6 +1,7 @@
 import logoUrl from '../assets/logo.svg';
 import wordmarkLogoUrl from '../assets/wordmark-logo.svg';
 import { Button } from '../components/button';
+import { CalendarDayView } from '../components/calendar-day-view';
 import { PhoneMockup } from '../components/phone-mockup';
 import './landing.css';
 
@@ -25,7 +26,9 @@ export function Landing({ onStart }: LandingProps) {
         Commencer
       </Button>
       <div className="landing__phone">
-        <PhoneMockup />
+        <PhoneMockup>
+          <CalendarDayView />
+        </PhoneMockup>
       </div>
     </div>
   );
