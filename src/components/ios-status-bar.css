@@ -1,0 +1,119 @@
+/* Valeurs en points iOS, reprises de la barre d'état du Calendrier dans la maquette Figma.
+   --pt est fourni par la vue qui contient la barre. */
+.ios-status-bar {
+  display: flex;
+  align-items: center;
+  padding: 0 calc(10 * var(--pt));
+  color: #000;
+}
+
+.ios-status-bar__area {
+  display: flex;
+  flex: 1 0 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: calc(18 * var(--pt)) 0 calc(13 * var(--pt));
+}
+
+.ios-status-bar__time {
+  font-size: calc(18 * var(--pt));
+  font-weight: 600;
+  line-height: calc(23 * var(--pt));
+  letter-spacing: calc(-0.59 * var(--pt));
+}
+
+.ios-status-bar__island {
+  flex: none;
+  width: calc(126 * var(--pt));
+  height: calc(37 * var(--pt));
+  margin: calc(11 * var(--pt)) 0 calc(6 * var(--pt));
+}
+
+.ios-status-bar__icons {
+  display: flex;
+  gap: calc(3 * var(--pt));
+}
+
+.ios-status-bar__icon {
+  position: relative;
+  flex: none;
+  height: calc(23 * var(--pt));
+}
+
+.ios-status-bar__icon--cellular {
+  width: calc(27 * var(--pt));
+}
+
+.ios-status-bar__icon--wifi {
+  width: calc(23 * var(--pt));
+}
+
+.ios-status-bar__icon--battery {
+  width: calc(36 * var(--pt));
+}
+
+.ios-status-bar__cellular {
+  position: absolute;
+  inset: 13.04% 9.65% 24.27% 7.41%;
+}
+
+.ios-status-bar__cellular-bar {
+  position: absolute;
+}
+
+.ios-status-bar__cellular-bar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ios-status-bar__cellular-bar--empty-4 {
+  inset: 75.47% 0.05% 0.06% 83.23%;
+}
+
+.ios-status-bar__cellular-bar--full-4 {
+  inset: 0 0 0.06% 83.25%;
+}
+
+.ios-status-bar__cellular-bar--empty-3 {
+  inset: 75.47% 27.78% 0.06% 55.5%;
+}
+
+.ios-status-bar__cellular-bar--full-3 {
+  inset: 22.74% 27.76% 0.06% 55.52%;
+}
+
+.ios-status-bar__cellular-bar--empty-2 {
+  inset: 75.47% 55.51% 0.06% 27.77%;
+}
+
+.ios-status-bar__cellular-bar--full-2 {
+  inset: 43.58% 55.52% 0.06% 27.76%;
+}
+
+.ios-status-bar__cellular-bar--empty-1 {
+  inset: 75.47% 83.28% 0.06% 0;
+}
+
+.ios-status-bar__cellular-bar--full-1 {
+  inset: 61.6% 83.28% 0.06% 0;
+}
+
+.ios-status-bar__wifi {
+  position: absolute;
+  top: calc(4 * var(--pt));
+  left: calc(2 * var(--pt));
+  display: block;
+  width: calc(19.11 * var(--pt));
+  height: calc(13.8 * var(--pt));
+}
+
+.ios-status-bar__battery {
+  position: absolute;
+  top: calc(4 * var(--pt));
+  left: calc(3 * var(--pt));
+  display: block;
+  width: calc(30.84 * var(--pt));
+  height: calc(13.95 * var(--pt));
+}

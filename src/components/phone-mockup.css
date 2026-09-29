@@ -6,7 +6,6 @@
   flex: none;
   width: 300px;
   height: 609px;
-  color: #000;
 }
 
 .phone-mockup__side-button {
@@ -89,55 +88,4 @@
   border-radius: 99px;
   background: #000;
   transform: translateX(-50%);
-}
-
-.phone-mockup__status {
-  position: absolute;
-  top: 26.8px;
-  left: 48px;
-  right: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-family: system-ui, sans-serif;
-  font-size: 12.69px;
-  font-weight: 600;
-}
-
-.phone-mockup__status-icons {
-  display: flex;
-  align-items: center;
-  gap: 6.5px;
-}
-
-.phone-mockup__cell {
-  width: 12.2px;
-  height: 7.6px;
-  background:
-    linear-gradient(#000, #000) 0 4.85px / 2.3px 2.77px,
-    linear-gradient(#000, #000) 3.23px 3.46px / 2.3px 4.15px,
-    linear-gradient(#000, #000) 6.69px 1.85px / 2.3px 5.77px,
-    linear-gradient(#000, #000) 9.92px 0 / 2.3px 7.6px;
-  background-repeat: no-repeat;
-  opacity: 0.9;
-}
-
-.phone-mockup__wifi {
-  opacity: 0.9;
-}
-
-.phone-mockup__battery {
-  position: relative;
-  width: 14.8px;
-  height: 6.7px;
-  border: 0.692px solid rgba(0, 0, 0, 0.4);
-  border-radius: 5px;
-}
-
-.phone-mockup__battery::before {
-  content: '';
-  position: absolute;
-  inset: 0.46px;
-  border-radius: 4px;
-  background: #000;
 }

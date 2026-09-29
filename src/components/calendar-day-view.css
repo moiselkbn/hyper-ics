@@ -30,10 +30,6 @@
   border-bottom: calc(0.33 * var(--pt)) solid var(--separator);
 }
 
-.calendar-day-view__status-bar {
-  height: calc(54 * var(--pt));
-}
-
 .calendar-day-view__actions {
   position: relative;
   height: calc(44 * var(--pt));

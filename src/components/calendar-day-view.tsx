@@ -5,6 +5,7 @@ import plusUrl from '../assets/calendar-plus.svg';
 import searchUrl from '../assets/calendar-search.svg';
 import { SAMPLE_LESSONS } from '../data/sample-lessons';
 import { useToday } from '../hooks/use-today';
+import { IosStatusBar } from './ios-status-bar';
 import './calendar-day-view.css';
 
 // Heure figée à 9:41, comme sur les visuels d'Apple (seule la date suit le jour réel).
@@ -60,7 +61,7 @@ export function CalendarDayView() {
   return (
     <div className="calendar-day-view" aria-hidden="true">
       <div className="calendar-day-view__header">
-        <div className="calendar-day-view__status-bar" />
+        <IosStatusBar />
         <div className="calendar-day-view__actions">
           <span className="calendar-day-view__back">
             <img className="calendar-day-view__back-icon" src={chevronLeftUrl} alt="" />
