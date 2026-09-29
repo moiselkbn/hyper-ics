@@ -9,7 +9,7 @@ export type SampleLesson = {
 };
 
 export const SAMPLE_LESSONS: SampleLesson[] = [
-  { subject: 'Anglais', room: 'L342', teacher: 'Peeters', start: '09:00', end: '11:00' },
-  { subject: 'Typographie', room: 'L215', teacher: 'Lambert', start: '11:30', end: '13:00' },
-  { subject: 'Développement web', room: 'L108', teacher: 'Maes', start: '14:00', end: '16:30' },
+  { subject: 'Anglais', room: 'L342', teacher: 'Verhaegen', start: '09:00', end: '11:00' },
+  { subject: 'Typographie', room: 'L215', teacher: 'Delvaux', start: '11:30', end: '13:00' },
+  { subject: 'Développement web', room: 'L108', teacher: 'Moreau', start: '14:00', end: '16:30' },
 ];
