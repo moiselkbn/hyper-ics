@@ -1,5 +1,6 @@
 // Périmètre du MVP : uniquement les promotions du campus Waterside.
 // Les autres promotions (Droit, Comptabilité, TLM…) ne sont jamais scrapées.
+// Accessoires de mode est hors MVP : aucun libellé de promotion identifié dans Hyperplanning.
 // Chaque cursus regroupe ses promotions et porte l'intitulé affiché dans l'app.
 //
 // Les motifs portent sur le libellé simplifié (voir simplifyPromotionLabel) : « 3TI-WEB » et « 3ti web »
@@ -35,11 +36,6 @@ export const CURRICULA = [
     id: 'fashion-design',
     name: 'Stylisme et modélisme',
     patterns: [/^\dSM[A-Z]$/], // nSMx (ex. 2SMC)
-  },
-  {
-    id: 'fashion-accessories',
-    name: 'Accessoires de mode',
-    patterns: [], // motif à définir : aucun libellé identifié pour l'instant
   },
 ];
 

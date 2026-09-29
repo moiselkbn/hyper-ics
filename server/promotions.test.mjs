@@ -60,7 +60,6 @@ test('signale les promotions sans cours publié, sans deviner quand on ne sait p
 test('omet les cursus sans promotion', () => {
   const ids = buildPromotions(INDEX).curricula.map(({ id }) => id);
   assert.equal(ids.includes('advertising'), false);
-  assert.equal(ids.includes('fashion-accessories'), false);
 });
 
 test('getPromotions lit l’index dans Redis', async () => {

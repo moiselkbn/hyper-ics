@@ -30,7 +30,7 @@ API Vercel (/api)  ──►  front React (choix des cours, page de l'élève /m
 
 ## Périmètre du MVP
 
-- **Campus Waterside uniquement** : électronique appliquée, techniques graphiques, arts du tissu, publicité, stylisme et modélisme (accessoires de mode : pas encore couvert). Les autres promotions ne sont jamais interrogées.
+- **Campus Waterside uniquement** : électronique appliquée, techniques graphiques, arts du tissu, publicité, stylisme et modélisme. Accessoires de mode est hors du MVP (aucune promotion identifiée dans Hyperplanning). Les autres promotions ne sont jamais interrogées.
 - **1er quadrimestre uniquement** (semaines 1 à 16), le seul visible dans Hyperplanning. Le 2e est traité après le MVP.
 
 ## État du projet
