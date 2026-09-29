@@ -6,7 +6,17 @@
     <meta name="theme-color" content="#1d1e1b" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <script>
+      // Safari iOS lit le manifest dès que sa balise est analysée, puis ne le relit plus : la balise est créée ici,
+      // directement avec celui de la page ouverte (sur /m/<jeton>, celui dont l'adresse de départ est la page de l'élève).
+      (function () {
+        var match = location.pathname.match(/^\/m\/([A-Za-z0-9_-]+)\/?$/);
+        var link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = match ? '/api/manifest?token=' + match[1] : '/manifest.json';
+        document.head.appendChild(link);
+      })();
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="HyperICS" />
     <title>HyperICS</title>

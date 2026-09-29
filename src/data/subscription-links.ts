@@ -53,11 +53,18 @@ function setManifest(href: string) {
 }
 
 // Met la page de l'élève dans la barre d'adresse et fait pointer le manifest vers celui de cette page :
-// favoris et icône d'écran d'accueil rouvriront sa page, pas l'accueil.
+// favoris et icône d'écran d'accueil rouvriront sa page, pas l'accueil. Safari ne relit pas un manifest changé
+// après le chargement : pour lui, la balise est créée avec le bon manifest dans index.html (voir openPage).
 export function showPage(token: string) {
   const path = `${PAGE_PREFIX}${token}`;
   if (window.location.pathname !== path) window.history.replaceState(null, '', path);
   setManifest(`/api/manifest?token=${encodeURIComponent(token)}`);
+}
+
+// Ouvre la page de l'élève par un vrai chargement : Safari ne lit le manifest qu'au chargement de la page,
+// c'est donc le seul moyen pour que l'icône d'écran d'accueil rouvre cette page et pas l'accueil.
+export function openPage(token: string) {
+  window.location.replace(pageUrl(token));
 }
 
 // Retour à l'accueil (lien inconnu) : adresse et manifest redeviennent ceux de l'app.

@@ -17,7 +17,7 @@ import {
   type Lesson,
   type StoredPromotion,
 } from './data/lessons';
-import { feedUrl, leavePage, pageTokenOf, pageUrl, showPage } from './data/subscription-links';
+import { feedUrl, leavePage, openPage, pageTokenOf, pageUrl, showPage } from './data/subscription-links';
 import { ClassChoice } from './screens/class-choice';
 import { FeedReady } from './screens/feed-ready';
 import { Generation } from './screens/generation';
@@ -80,6 +80,11 @@ export function App() {
   }, [openedToken, loadOpened]);
 
   useEffect(requestOpened, [requestOpened]);
+
+  // Calendrier créé : sa page est rechargée pour de vrai (voir openPage), l'élève y arrive directement.
+  useEffect(() => {
+    if (screen === 'feed-ready' && !editing && saved.status === 'ready') openPage(saved.data);
+  }, [screen, editing, saved]);
 
   // Cours des promotions choisies, cochés d'après la sélection enregistrée en modification ; sinon préréglage,
   // tous les cours des promotions choisies.
@@ -294,11 +299,6 @@ export function App() {
       />
     );
   }
-  return (
-    <FeedReady
-      pageUrl={pageUrl(saved.data)}
-      feedUrl={feedUrl(saved.data)}
-      onBack={() => setScreen('selection-review')}
-    />
-  );
+  // Création : attente du rechargement sur la page de l'élève (voir l'effet plus haut).
+  return <StatusScreen status="loading" onRetry={() => openPage(saved.data)} />;
 }
