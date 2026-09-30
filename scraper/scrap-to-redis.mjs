@@ -10,8 +10,8 @@ import { createRedisClient } from '../shared/redis-client.mjs';
 import { SCHEDULE_INDEX_KEY } from '../shared/redis-keys.mjs';
 import { createResendClient } from '../shared/resend-client.mjs';
 import { isInWatersideScope } from './campus-scope.mjs';
-import { fetchRawSchedule, listPromotions, openSession } from './hyperplanning-client.mjs';
 import { parseDate } from './parse-schedule.mjs';
+import { openScrapSession } from './scrap-session.mjs';
 import { isFresh, isWithinScrapHours } from './scrap-window.mjs';
 import { syncSchedules } from './sync-schedules.mjs';
 import { watchPromotions } from './watch-promotions.mjs';
@@ -45,8 +45,7 @@ if (skipIfFresh) {
   }
 }
 
-const { session, generalParams } = await openSession();
-const all = await listPromotions(session);
+const { generalParams, promotions: all, fetchRaw } = await openScrapSession({ log });
 const promotions = all.filter(({ label }) => isInWatersideScope(label));
 log(`${promotions.length} promotions Waterside sur ${all.length} (les autres sont ignorées).`);
 if (promotions.length === 0) {
@@ -56,8 +55,8 @@ if (promotions.length === 0) {
 
 const { written, held, failed } = await syncSchedules({
   promotions,
-  fetchRaw: (promotion) => fetchRawSchedule(session, promotion),
-  fetchRawWeeks: (promotion, weeksRange) => fetchRawSchedule(session, promotion, weeksRange),
+  fetchRaw: (promotion) => fetchRaw(promotion),
+  fetchRawWeeks: fetchRaw,
   redis,
   firstMonday: parseDate(generalParams.PremierLundi.V),
   log,

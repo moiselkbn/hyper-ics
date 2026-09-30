@@ -25,6 +25,7 @@ class HyperplanningSession {
   #order = 1;
   #iv = Buffer.alloc(16);
   #pendingIv = crypto.randomBytes(16);
+  #broken = false;
 
   constructor(space, sessionId) {
     this.#space = space;
@@ -36,7 +37,24 @@ class HyperplanningSession {
     return Buffer.concat([cipher.update(String(this.#order)), cipher.final()]).toString('hex');
   }
 
+  // Vrai après un échange en échec : le serveur a pu le traiter (requête abandonnée faute de réponse à temps)
+  // et avancer son numéro sans nous. Les numéros ne concordent alors plus et le serveur répond « La page a
+  // expiré ! » à toute la suite : la session est inutilisable, il faut en ouvrir une autre.
+  get broken() {
+    return this.#broken;
+  }
+
   async call(id, data, signature) {
+    if (this.#broken) throw new Error(`${id} : session interrompue par un échange en échec`);
+    try {
+      return await this.#send(id, data, signature);
+    } catch (error) {
+      this.#broken = true;
+      throw error;
+    }
+  }
+
+  async #send(id, data, signature) {
     const no = this.#encryptOrder();
     const dataSec = signature ? { Signature: signature, data } : { data };
     const response = await fetch(`${BASE_URL}/appelfonction/${this.#space}/${this.#sessionId}/${no}`, {
