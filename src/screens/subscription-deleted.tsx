@@ -12,8 +12,6 @@ const APPLE_MAC_STEPS =
   'Dans Calendrier, fais un clic droit sur HyperICS dans la liste des calendriers, puis « Se désabonner ».';
 const GOOGLE_STEPS =
   'Sur calendar.google.com, depuis un ordinateur : dans « Autres agendas », survole HyperICS et clique sur la croix (« Se désabonner »). Il disparaît aussi de ton téléphone.';
-const OUTLOOK_STEPS =
-  'Sur outlook.com : fais un clic droit sur HyperICS dans la liste des calendriers, puis « Supprimer ».';
 
 type SubscriptionDeletedProps = {
   onRestart: () => void;
@@ -26,7 +24,6 @@ export function SubscriptionDeleted({ onRestart }: SubscriptionDeletedProps) {
   const steps = {
     apple: isAppleTouchDevice() ? APPLE_TOUCH_STEPS : APPLE_MAC_STEPS,
     google: GOOGLE_STEPS,
-    outlook: OUTLOOK_STEPS,
   }[app];
 
   return (

@@ -6,8 +6,9 @@ const FEED_PREFIX = '/f/';
 const DEFAULT_MANIFEST = '/manifest.json';
 
 // L'application de calendrier décide de la façon de s'abonner, pas l'appareil : le lien Apple est le même
-// sur iPhone, iPad et Mac, et Google Agenda ou Outlook s'ajoutent depuis leur site (sur Android aussi pour Google).
-export type CalendarApp = 'apple' | 'google' | 'outlook';
+// sur iPhone, iPad et Mac, et Google Agenda s'ajoute depuis son site (sur Android aussi). Outlook est écarté pendant
+// la bêta : la cible ne s'en sert pas comme agenda, et son compte Outlook est celui, scolaire, de l'HEFF.
+export type CalendarApp = 'apple' | 'google';
 
 export const pageUrl = (token: string) => `${window.location.origin}${PAGE_PREFIX}${token}`;
 export const feedUrl = (token: string) => `${window.location.origin}${FEED_PREFIX}${token}`;
@@ -19,17 +20,14 @@ export const webcalUrl = (feed: string) => feed.replace(/^https?:\/\//, 'webcal:
 export const googleCalendarUrl = (feed: string) =>
   `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcalUrl(feed))}`;
 
-export const outlookUrl = (feed: string) =>
-  `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(webcalUrl(feed))}&name=HyperICS`;
-
 // Application proposée d'office : Apple sur un appareil Apple (l'iPad se présente comme un Mac), Google ailleurs
 // (Android, et la plupart des élèves ont un compte Google). L'élève peut toujours changer d'onglet.
 export function detectCalendarApp(userAgent = window.navigator.userAgent): CalendarApp {
   return /iphone|ipad|ipod|macintosh/i.test(userAgent) ? 'apple' : 'google';
 }
 
-// Téléphone : Outlook n'y permet pas l'ajout par adresse, Google Agenda seulement sur Android (voir isAndroid) ;
-// sinon, il faut passer par un ordinateur.
+// Téléphone : Google Agenda n'y permet l'ajout par adresse que sur Android (voir isAndroid) ; sinon, il faut passer
+// par un ordinateur.
 export function isPhone(userAgent = window.navigator.userAgent): boolean {
   return /iphone|ipod|android/i.test(userAgent);
 }

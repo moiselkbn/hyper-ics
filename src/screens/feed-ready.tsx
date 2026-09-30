@@ -13,7 +13,6 @@ import {
   isAndroid,
   isAppleTouchDevice,
   isPhone,
-  outlookUrl,
   webcalUrl,
   type CalendarApp,
 } from '../data/subscription-links';
@@ -26,8 +25,6 @@ const APPLE_MAC_STEPS =
   'Ajoute-le à la main : dans Calendrier, menu « Fichier », puis « Nouvel abonnement à un calendrier… », et colle cette adresse :';
 const GOOGLE_STEPS =
   'Sur calendar.google.com, depuis un ordinateur : « Autres agendas », « + », puis « À partir de l’URL », et colle cette adresse. S’il n’apparaît pas ensuite sur ton téléphone : appli Google Agenda, Paramètres, HyperICS, active « Synchroniser ».';
-const OUTLOOK_STEPS =
-  'Sur outlook.com, depuis un ordinateur : « Ajouter un calendrier », puis « S’abonner à partir du web », et colle cette adresse.';
 
 // Sur Android, Chrome confie à l'appli Google Agenda tout lien vers calendar.google.com ouvert juste après un toucher
 // (activation utilisateur, ~5 s) : l'appli demande « Ajouter l'agenda ? » mais n'ajoute rien. Passé ce délai, Chrome
@@ -112,7 +109,7 @@ function SendLinkButton({ pageUrl }: { pageUrl: string }) {
   );
 }
 
-// Outlook (et Google Agenda sur iPhone) n'acceptent un abonnement par adresse que sur leur site, depuis un ordinateur :
+// Google Agenda (hors Android) n'accepte un abonnement par adresse que sur son site, depuis un ordinateur :
 // sur un téléphone, on propose d'envoyer le lien de cette page vers un ordinateur.
 function SendToComputer({ appName, tabLabel, pageUrl }: { appName: string; tabLabel: string; pageUrl: string }) {
   return (
@@ -185,11 +182,11 @@ export function FeedReady({ pageUrl, feedUrl, onEdit, updated = false, onDelete 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const phone = isPhone();
   const android = isAndroid();
-  // Sur un téléphone, le lien direct vers Google Agenda (sauf Android) ou Outlook ne marche pas : la marche à suivre
-  // devient l'action principale.
+  // Sur un téléphone, le lien direct vers Google Agenda (sauf Android) ne marche pas : la marche à suivre devient
+  // l'action principale.
   const webSummary = phone ? 'Ou ajoute-le à la main' : 'Le bouton ne marche pas ?';
 
-  // Apple Calendar (iPhone, iPad, Mac) s'ouvre sur l'abonnement ; Google et Outlook dans un nouvel onglet.
+  // Apple Calendar (iPhone, iPad, Mac) s'ouvre sur l'abonnement ; Google dans un nouvel onglet.
   const addToAppleCalendar = () => {
     window.location.href = webcalUrl(feedUrl);
   };
@@ -266,17 +263,6 @@ export function FeedReady({ pageUrl, feedUrl, onEdit, updated = false, onDelete 
               )}
               <p className="feed-ready__hint">Google Agenda peut mettre jusqu’à 24 h à afficher un changement de cours.</p>
               <ManualSubscription summary={webSummary} steps={GOOGLE_STEPS} feedUrl={feedUrl} />
-            </div>
-          )}
-
-          {app === 'outlook' && (
-            <div className="feed-ready__panel">
-              {phone ? (
-                <SendToComputer appName="Outlook" tabLabel="Outlook" pageUrl={pageUrl} />
-              ) : (
-                <AddButton onClick={() => openInNewTab(outlookUrl(feedUrl))}>Ajouter à Outlook</AddButton>
-              )}
-              <ManualSubscription summary={webSummary} steps={OUTLOOK_STEPS} feedUrl={feedUrl} />
             </div>
           )}
         </>

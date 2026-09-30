@@ -2,11 +2,10 @@ import type { CalendarApp } from '../data/subscription-links';
 import './calendar-app-tabs.css';
 
 // Un onglet par application de calendrier, pas par appareil : le lien Apple est le même sur iPhone, iPad et Mac.
-// Seul l'onglet Apple est dans la maquette : Google et Outlook en reprennent le style.
+// Seul l'onglet Apple est dans la maquette : Google en reprend le style.
 const CALENDAR_APPS: { id: CalendarApp; label: string }[] = [
   { id: 'apple', label: 'Apple' },
   { id: 'google', label: 'Google' },
-  { id: 'outlook', label: 'Outlook' },
 ];
 
 type CalendarAppTabsProps = {
