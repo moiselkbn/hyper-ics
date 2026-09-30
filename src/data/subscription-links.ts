@@ -6,7 +6,7 @@ const FEED_PREFIX = '/f/';
 const DEFAULT_MANIFEST = '/manifest.json';
 
 // L'application de calendrier décide de la façon de s'abonner, pas l'appareil : le lien Apple est le même
-// sur iPhone, iPad et Mac, et Google Agenda ou Outlook s'ajoutent depuis leur site, sur un ordinateur.
+// sur iPhone, iPad et Mac, et Google Agenda ou Outlook s'ajoutent depuis leur site (sur Android aussi pour Google).
 export type CalendarApp = 'apple' | 'google' | 'outlook';
 
 export const pageUrl = (token: string) => `${window.location.origin}${PAGE_PREFIX}${token}`;
@@ -28,9 +28,16 @@ export function detectCalendarApp(userAgent = window.navigator.userAgent): Calen
   return /iphone|ipad|ipod|macintosh/i.test(userAgent) ? 'apple' : 'google';
 }
 
-// Téléphone : Google Agenda et Outlook n'y permettent pas l'ajout par adresse, il faut passer par un ordinateur.
+// Téléphone : Outlook n'y permet pas l'ajout par adresse, Google Agenda seulement sur Android (voir isAndroid) ;
+// sinon, il faut passer par un ordinateur.
 export function isPhone(userAgent = window.navigator.userAgent): boolean {
   return /iphone|ipod|android/i.test(userAgent);
+}
+
+// Android : le site de Google Agenda s'ouvre dans Chrome et y abonne le compte, à condition de l'ouvrir
+// quelques secondes après le toucher (voir GoogleAndroidButton dans feed-ready.tsx).
+export function isAndroid(userAgent = window.navigator.userAgent): boolean {
+  return /android/i.test(userAgent);
 }
 
 // iPhone ou iPad (qui se présente comme un Mac, mais tactile) : l'ajout à la main s'y fait dans l'app Calendrier,
