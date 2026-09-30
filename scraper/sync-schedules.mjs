@@ -132,7 +132,7 @@ export async function syncSchedules({
   // un planning vide renvoyé à toutes les promotions serait confirmé en 30 min.
   if (written.length + held.length > 0) {
     try {
-      await writeIndex({ promotions, written, hasCourses, redis, now });
+      await writeIndex({ promotions, written, held, failed, hasCourses, redis, now });
     } catch (error) {
       failed.push({ label: SCHEDULE_INDEX_KEY, message: error.message });
       log(`${SCHEDULE_INDEX_KEY} : ÉCHEC (${error.message})`);
@@ -146,8 +146,13 @@ export async function syncSchedules({
 // (leur ancien planning existe).
 // `hasCourses` permet à l'app d'indiquer « Aucun cours publié » sans lire les plannings ; une promotion
 // dont l'écriture échoue garde la valeur précédente, et le champ reste absent tant qu'on ne la connaît pas.
-async function writeIndex({ promotions, written, hasCourses, redis, now }) {
-  const previous = (await redis.getJson(SCHEDULE_INDEX_KEY))?.promotions ?? [];
+// `updatedAt` n'avance que si au moins la moitié des promotions a réussi : un passage surtout en échec ne rend
+// pas le scrap « frais » (voir scrap-window.mjs), et le déclenchement suivant, 15 min plus tard, le refait.
+async function writeIndex({ promotions, written, held, failed, hasCourses, redis, now }) {
+  const index = await redis.getJson(SCHEDULE_INDEX_KEY);
+  const previous = index?.promotions ?? [];
+  const mostlyFailed = failed.length > written.length + held.length;
+  const updatedAt = mostlyFailed && index?.updatedAt ? index.updatedAt : now.toISOString();
   const listed = promotions
     .filter(({ label }) => written.includes(label) || previous.some((entry) => entry.label === label))
     .map(({ label }) => ({
@@ -155,5 +160,5 @@ async function writeIndex({ promotions, written, hasCourses, redis, now }) {
       curriculum: getCurriculum(label)?.id ?? null,
       hasCourses: hasCourses.get(label) ?? previous.find((entry) => entry.label === label)?.hasCourses,
     }));
-  await redis.setJson(SCHEDULE_INDEX_KEY, { updatedAt: now.toISOString(), promotions: listed });
+  await redis.setJson(SCHEDULE_INDEX_KEY, { updatedAt, promotions: listed });
 }

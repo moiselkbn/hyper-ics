@@ -158,6 +158,25 @@ test("sans aucune écriture réussie, la liste existante n'est pas touchée", as
   assert.deepEqual(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)), previous);
 });
 
+test('un passage surtout en échec écrit la liste sans la redater, pour être refait au déclenchement suivant', async () => {
+  const previous = { updatedAt: 'avant', promotions: [{ label: '1AT', curriculum: null }] };
+  const redis = fakeRedis({ initial: { [SCHEDULE_INDEX_KEY]: previous } });
+  const fetchRaw = async (p) => (p.label === '1AT' ? rawWith('Cours') : {});
+  const result = await run({ promotions: [promo('1AT'), promo('2AT'), promo('3AT')], fetchRaw, redis });
+  assert.deepEqual(result.written, ['1AT']);
+  assert.equal(result.failed.length, 2);
+  const index = JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY));
+  assert.equal(index.updatedAt, 'avant');
+  assert.equal(index.promotions[0].hasCourses, true); // la promotion écrite est bien mise à jour
+});
+
+test('un passage réussi pour au moins la moitié des promotions redate la liste', async () => {
+  const redis = fakeRedis({ initial: { [SCHEDULE_INDEX_KEY]: { updatedAt: 'avant', promotions: [] } } });
+  const fetchRaw = async (p) => (p.label === '1AT' ? rawWith('Cours') : {});
+  await run({ promotions: [promo('1AT'), promo('2AT')], fetchRaw, redis });
+  assert.equal(JSON.parse(redis.store.get(SCHEDULE_INDEX_KEY)).updatedAt, NOW.toISOString());
+});
+
 test('une matière renommée entre deux passages est notée dans le planning, pour l’abonnement des élèves', async () => {
   const redis = fakeRedis();
   await run({ promotions: [promo('3TI Web')], fetchRaw: async () => rawWith('Electr. num. 1'), redis });
