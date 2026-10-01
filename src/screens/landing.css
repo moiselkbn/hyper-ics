@@ -81,14 +81,23 @@
   margin-top: 14px;
 }
 
-/* La maquette est coupée en bas de l'écran : le téléphone déborde. */
+/* La maquette est coupée en bas de l'écran : le téléphone prend la hauteur restante, sans faire défiler la page
+   (base nulle : sa hauteur réelle n'agrandit pas l'accueil au-delà de l'écran). */
 .landing__phone {
   display: flex;
-  flex: 1;
+  flex: 1 1 0;
   justify-content: center;
   align-items: flex-start;
   width: 100%;
-  min-height: 407px;
+  min-height: 0;
   margin-top: 56px;
   overflow: hidden;
+}
+
+.landing__credit {
+  flex: none;
+  margin: 0;
+  padding: var(--space-1) 0 max(var(--space-1), env(safe-area-inset-bottom));
+  color: var(--transparent-white-50);
+  font-size: 12px;
 }
