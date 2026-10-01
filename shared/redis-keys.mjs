@@ -13,3 +13,6 @@ export const scheduleKey = (promotionLabel) => `schedule:${promotionLabel.trim()
 // Abonnement d'un élève (cours suivis par promotion), retrouvé par le hash de son jeton,
 // jamais par le jeton en clair (voir shared/token.mjs).
 export const subscriptionKey = (tokenHash) => `subscription:${tokenHash}`;
+
+// Lectures du flux d'un abonnement par application de calendrier (voir server/feed-reads.mjs), sous le même hash.
+export const feedReadsKey = (tokenHash) => `feed-reads:${tokenHash}`;

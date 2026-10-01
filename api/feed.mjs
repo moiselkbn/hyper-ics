@@ -1,15 +1,19 @@
 // Fonction Vercel : GET /api/feed?token=… (adresse publique : /f/<jeton>, voir vercel.json) sert le flux ICS
 // d'un abonnement. La logique est dans server/ ; ce fichier ne fait que la brancher sur Redis.
 import { createRedisClient } from '../shared/redis-client.mjs';
+import { detectReader } from '../server/feed-reads.mjs';
 import { respond } from '../server/http.mjs';
 import { getFeedIcs } from '../server/feed.mjs';
 
 // Une ligne de log par interrogation : qui lit le flux (iPhone, Mac, serveurs d'iCloud, de Google…) et avec quel
-// résultat. Jamais le jeton ni l'URL : seul l'user-agent identifie le client.
+// résultat. Jamais le jeton ni l'URL : seul l'user-agent identifie le client. `reader` : l'application reconnue
+// (voir server/feed-reads.mjs), null pour un client qui n'est pas compté ; à comparer à l'user-agent pour vérifier
+// la détection.
 async function serveFeed(request) {
-  const response = await respond(() => getFeedIcs(createRedisClient(), new URL(request.url)));
+  const userAgent = request.headers.get('user-agent');
+  const response = await respond(() => getFeedIcs(createRedisClient(), new URL(request.url), { userAgent }));
   console.log(
-    JSON.stringify({ route: 'feed', method: request.method, status: response.status, userAgent: request.headers.get('user-agent') }),
+    JSON.stringify({ route: 'feed', method: request.method, status: response.status, reader: detectReader(userAgent), userAgent }),
   );
   return response;
 }

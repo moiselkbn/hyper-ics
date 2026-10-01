@@ -2,8 +2,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { courseKey } from '../shared/course-key.mjs';
-import { SCHEDULE_INDEX_KEY, scheduleKey } from '../shared/redis-keys.mjs';
-import { generateToken } from '../shared/token.mjs';
+import { feedReadsKey, SCHEDULE_INDEX_KEY, scheduleKey } from '../shared/redis-keys.mjs';
+import { generateToken, hashToken } from '../shared/token.mjs';
 import { getFeedIcs } from './feed.mjs';
 import { createSubscription, deleteSubscription } from './subscription.mjs';
 
@@ -40,6 +40,7 @@ function inMemoryRedis(records) {
     setJson: async (key, value) => store.set(key, JSON.stringify(value)),
     getJson: async (key) => (store.has(key) ? JSON.parse(store.get(key)) : null),
     mgetJson: async (keys) => keys.map((key) => (store.has(key) ? JSON.parse(store.get(key)) : null)),
+    del: async (key) => Number(store.delete(key)),
   };
 }
 
@@ -229,4 +230,56 @@ test('après suppression, le flux sert un calendrier valide mais vide, pour vide
   assert.match(ics, /^BEGIN:VCALENDAR\r\n/);
   assert.match(ics, /END:VCALENDAR\r\n$/);
   assert.doesNotMatch(ics, /BEGIN:VEVENT/);
+});
+
+// --- Lectures du flux par application de calendrier (voir feed-reads.mjs)
+
+const APPLE = 'iOS/27.0 (24A335) dataaccessd/1.0';
+const SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+const NOW = new Date('2026-10-01T10:00:00.000Z');
+const readsOf = (redis, token) => JSON.parse(redis.store.get(feedReadsKey(hashToken(token))) ?? 'null');
+
+test('getFeedIcs note la lecture d’une application de calendrier, pas celle d’un navigateur', async () => {
+  const redis = inMemoryRedis([record('1AT', [slot({ subject: 'Tissage', code: 'TIS-1' })])]);
+  const token = await subscribe(redis, [{ label: '1AT', checked: [courseKey('Tissage')], unchecked: [] }]);
+  const url = new URL(`http://localhost/api/feed?token=${token}`);
+
+  await getFeedIcs(redis, url, { now: NOW, userAgent: SAFARI });
+  assert.equal(readsOf(redis, token), null);
+
+  const response = await getFeedIcs(redis, url, { now: NOW, userAgent: APPLE });
+  assert.deepEqual(summaries(await response.text()), ['Tissage']);
+  assert.deepEqual(readsOf(redis, token), { apple: { firstReadAt: NOW.toISOString(), lastReadAt: NOW.toISOString() } });
+});
+
+test('getFeedIcs sert les cours même si la lecture ne peut pas être notée', async () => {
+  const redis = inMemoryRedis([record('1AT', [slot({ subject: 'Tissage', code: 'TIS-1' })])]);
+  const token = await subscribe(redis, [{ label: '1AT', checked: [courseKey('Tissage')], unchecked: [] }]);
+  redis.setJson = async () => {
+    throw new Error('Redis SET : panne simulée');
+  };
+  const logged = [];
+  const consoleError = console.error;
+  console.error = (message) => logged.push(message);
+  try {
+    const response = await getFeedIcs(redis, new URL(`http://localhost/api/feed?token=${token}`), { userAgent: APPLE });
+    assert.equal(response.status, 200);
+    assert.deepEqual(summaries(await response.text()), ['Tissage']);
+  } finally {
+    console.error = consoleError;
+  }
+  assert.deepEqual(logged, ['Redis SET : panne simulée']);
+});
+
+test('la suppression efface les lectures, et le flux d’un abonnement supprimé ne les note plus', async () => {
+  const redis = inMemoryRedis([record('1AT', [slot({ subject: 'Tissage', code: 'TIS-1' })])]);
+  const token = await subscribe(redis, [{ label: '1AT', checked: [courseKey('Tissage')], unchecked: [] }]);
+  const url = new URL(`http://localhost/api/feed?token=${token}`);
+  await getFeedIcs(redis, url, { now: NOW, userAgent: APPLE });
+  assert.notEqual(readsOf(redis, token), null);
+
+  await deleteSubscription(redis, { url: `http://localhost/api/subscription?token=${token}` });
+  assert.equal(readsOf(redis, token), null);
+  await getFeedIcs(redis, url, { now: NOW, userAgent: APPLE });
+  assert.equal(readsOf(redis, token), null);
 });

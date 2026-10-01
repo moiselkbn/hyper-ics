@@ -33,6 +33,7 @@ function inMemoryRedis(seed = {}) {
     },
     getJson: async (key) => (store.has(key) ? JSON.parse(store.get(key)) : null),
     mgetJson: async (keys) => keys.map((key) => (store.has(key) ? JSON.parse(store.get(key)) : null)),
+    del: async (key) => Number(store.delete(key)),
   };
 }
 

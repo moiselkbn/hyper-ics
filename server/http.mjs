@@ -21,7 +21,8 @@ export const errorResponse = (status, message) =>
 
 // Le flux ICS d'un élève. Pas de cache pendant la bêta : chaque interrogation d'un calendrier atteint la
 // fonction et apparaît donc dans les logs (qui interroge, avec quel résultat). À revoir si l'usage grimpe :
-// chaque interrogation coûte 2 commandes Upstash.
+// chaque interrogation coûte 2 commandes Upstash, plus l'écriture de sa lecture (au plus 1 par heure et par
+// application une fois l'ajout confirmé, voir server/feed-reads.mjs).
 export const icsResponse = (text) =>
   new Response(text, {
     headers: { ...HEADERS, 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-store' },
