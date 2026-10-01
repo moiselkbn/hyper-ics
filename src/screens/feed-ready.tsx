@@ -9,6 +9,7 @@ import { CalendarStatusList, NotAddedStatus, StartedStatus } from '../components
 import { DeleteSubscriptionModal } from '../components/delete-subscription-modal';
 import { LinkField } from '../components/link-field';
 import { MyLessons } from '../components/my-lessons';
+import { TodayLessons } from '../components/today-lessons';
 import { addedCalendars, pageStateOf, type StoredSubscription } from '../data/calendar-status';
 import type { FollowedLessonsSummary } from '../data/lessons';
 import { shareOrCopy } from '../data/share';
@@ -64,20 +65,24 @@ export function FeedReady({
   // « Réajouter mon calendrier » : l'onglet de l'application qui ne se met plus à jour, dans l'accordéon déplié.
   const [reAddApp, setReAddApp] = useState<CalendarApp | null>(null);
   const addOtherRef = useRef<HTMLDetailsElement>(null);
-  const { calendars, createdAt, updatedAt } = subscription;
+  const { calendars, createdAt, updatedAt, today } = subscription;
   const state = pageStateOf(calendars);
   const added = addedCalendars(calendars);
   const googleAdded = added.some((calendar) => calendar.app === 'google');
 
-  // Une fois le calendrier ajouté, la page sert surtout à modifier ses cours : le bloc remonte, bouton en avant.
+  // Cours du jour et sélection. Une fois le calendrier ajouté, la page sert surtout à les vérifier et à modifier ses
+  // cours : ces blocs remontent sous le statut, « Modifier mes cours » en bouton principal.
   const myLessons = (
-    <MyLessons
-      summary={lessonsSummary}
-      createdAt={createdAt}
-      updatedAt={updatedAt}
-      prominent={state === 'connected'}
-      onEdit={onEdit}
-    />
+    <>
+      <TodayLessons date={today.date} lessons={today.lessons} />
+      <MyLessons
+        summary={lessonsSummary}
+        createdAt={createdAt}
+        updatedAt={updatedAt}
+        prominent={state === 'connected'}
+        onEdit={onEdit}
+      />
+    </>
   );
 
   function reAdd(app: CalendarApp) {

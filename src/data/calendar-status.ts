@@ -6,12 +6,17 @@ import type { CalendarApp } from './subscription-links';
 export type CalendarState = 'started' | 'connected' | 'stale';
 export type CalendarStatus = { app: CalendarApp; state: CalendarState; lastReadAt: string };
 
+// Un cours du jour (voir lessonsOfDay, server/today.mjs) : salle et profs de cette occurrence-là.
+export type TodayLesson = { subject: string; start: string; end: string; rooms: string[]; teachers: string[] };
+
 // Ce que renvoie GET /api/subscription.
 export type StoredSubscription = {
   promotions: StoredPromotion[];
   calendars: CalendarStatus[];
   createdAt: string;
   updatedAt: string;
+  // Cours du jour à Bruxelles (`date` : « AAAA-MM-JJ »).
+  today: { date: string; lessons: TodayLesson[] };
 };
 
 // État de la page de l'élève :

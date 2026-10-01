@@ -1,19 +1,11 @@
 import lessonDotUrl from '../assets/lesson-dot.svg';
+import { formatDay } from '../data/dates';
 import type { FollowedLessonsSummary } from '../data/lessons';
 import { Button } from './button';
 import './my-lessons.css';
 
 // Matières montrées avant « Voir les N cours ».
 const PREVIEW_SIZE = 3;
-
-const DAY_FORMAT = new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' });
-
-// « 27 septembre », « 1er octobre ».
-function formatDay(date: string): string {
-  return DAY_FORMAT.formatToParts(new Date(date))
-    .map(({ type, value }) => (type === 'day' && value === '1' ? '1er' : value))
-    .join('');
-}
 
 type MyLessonsProps = {
   // null tant que les cours se chargent, ou si leur chargement a échoué : le bouton reste utilisable.
@@ -33,7 +25,7 @@ export function MyLessons({ summary, createdAt, updatedAt, prominent, onEdit }: 
       <div className="my-lessons__head">
         <h2 className="my-lessons__title">Mes cours</h2>
         <p className="my-lessons__date">
-          {dated} le {formatDay(updatedAt)}
+          {dated} le {formatDay(new Date(updatedAt))}
         </p>
       </div>
 

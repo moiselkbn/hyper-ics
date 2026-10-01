@@ -1,0 +1,128 @@
+.today-lessons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 20px var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--background-contrast);
+}
+
+.today-lessons__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.today-lessons__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.today-lessons__date {
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.today-lessons__empty {
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 14px;
+}
+
+.today-lessons__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.today-lessons__lesson {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.today-lessons__lesson--current {
+  background: var(--background-dark);
+}
+
+.today-lessons__time {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.today-lessons__start {
+  font-size: 14px;
+}
+
+.today-lessons__end {
+  color: var(--transparent-white-50);
+  font-size: 12px;
+}
+
+.today-lessons__bar {
+  flex: none;
+  align-self: stretch;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--transparent-white-20);
+}
+
+.today-lessons__lesson--current .today-lessons__bar {
+  background: var(--primary-yellow);
+}
+
+.today-lessons__info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.today-lessons__subject {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.today-lessons__place {
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 12px;
+}
+
+.today-lessons__tag {
+  flex: none;
+  padding: 3px var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--primary-yellow);
+  color: var(--background-dark);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.today-lessons__week {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 14px;
+}
+
+.today-lessons__chevron {
+  font-size: 18px;
+  line-height: 1;
+}
