@@ -8,7 +8,9 @@ import { Button } from '../components/button';
 import { CalendarStatusList, NotAddedStatus, StartedStatus } from '../components/calendar-status';
 import { DeleteSubscriptionModal } from '../components/delete-subscription-modal';
 import { LinkField } from '../components/link-field';
-import { addedCalendars, pageStateOf, type CalendarStatus } from '../data/calendar-status';
+import { MyLessons } from '../components/my-lessons';
+import { addedCalendars, pageStateOf, type StoredSubscription } from '../data/calendar-status';
+import type { FollowedLessonsSummary } from '../data/lessons';
 import { shareOrCopy } from '../data/share';
 import { isAndroid, isPhone, type CalendarApp } from '../data/subscription-links';
 import './feed-ready.css';
@@ -16,10 +18,12 @@ import './feed-ready.css';
 type FeedReadyProps = {
   pageUrl: string;
   feedUrl: string;
-  // État du calendrier dans chaque application qui a lu le flux.
-  calendars: CalendarStatus[];
-  // Page de l'élève : modifier ses cours.
-  onEdit?: () => void;
+  // Abonnement relu sur le serveur : état du calendrier dans chaque application, dates.
+  subscription: StoredSubscription;
+  // « Mes cours » ; null pendant le chargement des cours.
+  lessonsSummary: FollowedLessonsSummary | null;
+  // Modifier ses cours.
+  onEdit: () => void;
   // Sélection tout juste modifiée depuis la page de l'élève.
   updated?: boolean;
   // Calendrier tout juste créé : son nombre de cours, annoncé une seule fois (voir takeCreatedLessonCount).
@@ -48,7 +52,8 @@ function otherDevices() {
 export function FeedReady({
   pageUrl,
   feedUrl,
-  calendars,
+  subscription,
+  lessonsSummary,
   onEdit,
   updated = false,
   createdLessonCount = null,
@@ -59,9 +64,21 @@ export function FeedReady({
   // « Réajouter mon calendrier » : l'onglet de l'application qui ne se met plus à jour, dans l'accordéon déplié.
   const [reAddApp, setReAddApp] = useState<CalendarApp | null>(null);
   const addOtherRef = useRef<HTMLDetailsElement>(null);
+  const { calendars, createdAt, updatedAt } = subscription;
   const state = pageStateOf(calendars);
   const added = addedCalendars(calendars);
   const googleAdded = added.some((calendar) => calendar.app === 'google');
+
+  // Une fois le calendrier ajouté, la page sert surtout à modifier ses cours : le bloc remonte, bouton en avant.
+  const myLessons = (
+    <MyLessons
+      summary={lessonsSummary}
+      createdAt={createdAt}
+      updatedAt={updatedAt}
+      prominent={state === 'connected'}
+      onEdit={onEdit}
+    />
+  );
 
   function reAdd(app: CalendarApp) {
     setReAddApp(app);
@@ -74,7 +91,7 @@ export function FeedReady({
 
   return (
     <div className="feed-ready">
-      <AppHeader onEdit={onEdit} />
+      <AppHeader />
 
       {updated && (
         <Banner title="C’est à jour !">
@@ -106,6 +123,8 @@ export function FeedReady({
       {state === 'not-added' && <AddToCalendarCard pageUrl={pageUrl} feedUrl={feedUrl} />}
       {state === 'started' && <AddToCalendarCard pageUrl={pageUrl} feedUrl={feedUrl} variant="secondary" />}
 
+      {state === 'connected' && myLessons}
+
       <section className="feed-ready__keep">
         <h2 className="feed-ready__keep-title">Garde ta page perso</h2>
         <p className="feed-ready__keep-text">
@@ -121,6 +140,8 @@ export function FeedReady({
           {shareMessage}
         </p>
       </section>
+
+      {state !== 'connected' && myLessons}
 
       {state === 'connected' && (
         <AccordionGroup>

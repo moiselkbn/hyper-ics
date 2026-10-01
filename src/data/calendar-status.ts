@@ -7,7 +7,12 @@ export type CalendarState = 'started' | 'connected' | 'stale';
 export type CalendarStatus = { app: CalendarApp; state: CalendarState; lastReadAt: string };
 
 // Ce que renvoie GET /api/subscription.
-export type StoredSubscription = { promotions: StoredPromotion[]; calendars: CalendarStatus[] };
+export type StoredSubscription = {
+  promotions: StoredPromotion[];
+  calendars: CalendarStatus[];
+  createdAt: string;
+  updatedAt: string;
+};
 
 // État de la page de l'élève :
 // - `not-added` : aucune application n'a lu le flux, l'ajout est mis en avant ;

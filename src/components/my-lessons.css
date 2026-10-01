@@ -1,0 +1,82 @@
+.my-lessons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 20px var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--background-contrast);
+}
+
+.my-lessons__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.my-lessons__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.my-lessons__date {
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.my-lessons__promotions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-lessons__chip {
+  padding: 6px 12px;
+  border: 1px solid var(--transparent-white-20);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.my-lessons__subjects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-lessons__subject {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.my-lessons__subject img {
+  flex: none;
+}
+
+.my-lessons__all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.my-lessons__chevron {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+}

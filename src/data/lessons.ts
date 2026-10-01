@@ -85,3 +85,28 @@ export function getFollowedLessonIds(
       .map((lesson) => lesson.id),
   );
 }
+
+// Résumé de « Mes cours », sur la page de l'élève.
+export type FollowedLessonsSummary = {
+  total: number;
+  // Nombre de cours par promotion, dans l'ordre de l'abonnement. Un cours commun aux deux promotions ne compte que dans
+  // la première : les nombres s'additionnent pour donner le total.
+  byPromotion: { label: string; count: number }[];
+  // Matières suivies, dans l'ordre de l'API (alphabétique).
+  subjects: string[];
+};
+
+export function summarizeFollowedLessons(lessons: Lesson[], stored: StoredPromotion[]): FollowedLessonsSummary {
+  const labels = stored.map((entry) => entry.label);
+  const followedIds = getFollowedLessonIds(lessons, new Set(labels), stored);
+  const followed = lessons.filter((lesson) => followedIds.has(lesson.id));
+  const promotionOf = (lesson: Lesson) => labels.find((label) => lesson.promotions.includes(label));
+  return {
+    total: followed.length,
+    byPromotion: labels.map((label) => ({
+      label,
+      count: followed.filter((lesson) => promotionOf(lesson) === label).length,
+    })),
+    subjects: followed.map((lesson) => lesson.subject),
+  };
+}

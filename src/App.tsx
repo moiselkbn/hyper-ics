@@ -14,6 +14,7 @@ import { isPromotionDisabled, type Curriculum } from './data/curricula';
 import {
   getDefaultLessonIds,
   getFollowedLessonIds,
+  summarizeFollowedLessons,
   toSubscriptionPromotions,
   type Lesson,
   type StoredPromotion,
@@ -60,6 +61,8 @@ export function App() {
   // Sélection enregistrée de la page ouverte depuis son lien, et état du calendrier dans chaque application ; null si
   // le lien ne correspond à aucun abonnement.
   const [opened, loadOpened] = useRemote<StoredSubscription | null>();
+  // Cours des promotions de cette page, pour « Mes cours ».
+  const [pageLessons, loadPageLessons] = useRemote<Lesson[]>();
   const [saved, loadSaved] = useRemote<string>();
   // Jeton de l'abonnement créé pendant cette visite, ou de celui que l'élève modifie depuis sa page. Il survit à un
   // échec d'enregistrement : la tentative suivante met à jour ce même abonnement au lieu d'en créer un second, que
@@ -88,6 +91,16 @@ export function App() {
   }, [openedToken, loadOpened]);
 
   useEffect(requestOpened, [requestOpened]);
+
+  const openedData = opened.status === 'ready' ? opened.data : null;
+  // Rechargés seulement quand les promotions de l'abonnement changent, pas à chaque relecture de son état.
+  const openedLabels = openedData ? openedData.promotions.map((entry) => entry.label).join('\n') : '';
+  useEffect(() => {
+    if (!openedLabels) return;
+    loadPageLessons((signal) => fetchLessons(openedLabels.split('\n'), signal));
+  }, [openedLabels, loadPageLessons]);
+  const lessonsSummary =
+    openedData && pageLessons.status === 'ready' ? summarizeFollowedLessons(pageLessons.data, openedData.promotions) : null;
 
   // Retour dans l'onglet, par exemple après l'ajout dans l'application de calendrier : l'état du calendrier est relu,
   // sans écran de chargement. Seulement sur la page de l'élève : ailleurs, une relecture interromprait celle que
@@ -167,6 +180,10 @@ export function App() {
       (savedToken) => {
         setToken(savedToken);
         showPage(savedToken);
+        // Modification : la page relit l'abonnement, pour « Mes cours » et sa date.
+        if (current && current === openedToken) {
+          loadOpened((signal) => fetchSubscription(current, signal), undefined, { silent: true });
+        }
       },
     );
   }
@@ -226,7 +243,8 @@ export function App() {
       <FeedReady
         pageUrl={pageUrl(openedToken)}
         feedUrl={feedUrl(openedToken)}
-        calendars={opened.data.calendars}
+        subscription={opened.data}
+        lessonsSummary={lessonsSummary}
         onEdit={requestEdit}
         onDelete={requestDelete}
         createdLessonCount={CREATED_LESSON_COUNT}
@@ -310,11 +328,13 @@ export function App() {
   }
   // Modification enregistrée : l'élève retrouve sa page, avec la confirmation.
   if (editing) {
+    if (!openedData) return <StatusScreen status={opened.status === 'error' ? 'error' : 'loading'} onRetry={requestOpened} />;
     return (
       <FeedReady
         pageUrl={pageUrl(saved.data)}
         feedUrl={feedUrl(saved.data)}
-        calendars={opened.status === 'ready' && opened.data ? opened.data.calendars : []}
+        subscription={openedData}
+        lessonsSummary={lessonsSummary}
         onEdit={requestEdit}
         onDelete={requestDelete}
         updated

@@ -8,8 +8,7 @@
   grid-column: 2;
 }
 
-.app-header__back,
-.app-header__edit {
+.app-header__back {
   grid-column: 1;
   justify-self: start;
   display: flex;
@@ -18,7 +17,6 @@
 }
 
 .app-header__back,
-.app-header__edit,
 .app-header__bug {
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--primary-yellow);
