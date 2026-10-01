@@ -113,16 +113,3 @@
   font-size: 12px;
   white-space: nowrap;
 }
-
-.today-lessons__week {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0;
-  font-size: 14px;
-}
-
-.today-lessons__chevron {
-  font-size: 18px;
-  line-height: 1;
-}

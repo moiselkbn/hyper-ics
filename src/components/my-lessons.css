@@ -64,19 +64,3 @@
 .my-lessons__subject img {
   flex: none;
 }
-
-.my-lessons__all {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0;
-  color: var(--transparent-white-50);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.my-lessons__chevron {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 1;
-}

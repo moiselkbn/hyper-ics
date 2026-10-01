@@ -67,14 +67,6 @@ export function TodayLessons({ date, lessons }: TodayLessonsProps) {
           })}
         </ul>
       )}
-
-      {/* Destination pas encore décidée : affiché, sans action pour l'instant. */}
-      <p className="today-lessons__week">
-        Voir toute la semaine
-        <span className="today-lessons__chevron" aria-hidden="true">
-          ›
-        </span>
-      </p>
     </section>
   );
 }

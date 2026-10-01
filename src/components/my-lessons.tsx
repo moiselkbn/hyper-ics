@@ -4,7 +4,7 @@ import type { FollowedLessonsSummary } from '../data/lessons';
 import { Button } from './button';
 import './my-lessons.css';
 
-// Matières montrées avant « Voir les N cours ».
+// Matières montrées en aperçu.
 const PREVIEW_SIZE = 3;
 
 type MyLessonsProps = {
@@ -46,15 +46,6 @@ export function MyLessons({ summary, createdAt, updatedAt, prominent, onEdit }: 
               </li>
             ))}
           </ul>
-          {/* Destination pas encore décidée : affiché, sans action pour l'instant. */}
-          {summary.total > PREVIEW_SIZE && (
-            <p className="my-lessons__all">
-              Voir les {summary.total} cours
-              <span className="my-lessons__chevron" aria-hidden="true">
-                ›
-              </span>
-            </p>
-          )}
         </>
       )}
 
