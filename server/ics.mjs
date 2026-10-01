@@ -97,7 +97,8 @@ function compareOccurrences(a, b) {
 // Un élève en chevauchement (deux promotions suivies) a besoin de savoir à quelle promotion rattacher
 // chaque cours : son libellé seul ne suffit plus. Inutile en dessous de deux promotions, où tous les
 // cours du flux sont forcément ceux de l'unique promotion choisie.
-function summaryOf(lesson, showPromotion) {
+// Repris par « Aujourd'hui » sur la page de l'élève (server/today.mjs) : le même libellé que dans son calendrier.
+export function summaryOf(lesson, showPromotion) {
   if (!showPromotion) return lesson.subject;
   return `${lesson.subject} (${lesson.promotions.join(', ')})`;
 }

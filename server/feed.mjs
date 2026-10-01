@@ -6,8 +6,7 @@
 import { recordFeedRead } from './feed-reads.mjs';
 import { icsResponse } from './http.mjs';
 import { buildIcs } from './ics.mjs';
-import { buildDetailedLessons } from './lessons.mjs';
-import { findSubscription, isDeleted, isLessonFollowed, readFollowedSchedules, withCurrentKeys } from './subscription.mjs';
+import { findSubscription, followedLessons, isDeleted, readFollowedSchedules } from './subscription.mjs';
 
 // `userAgent` : celui du client qui lit le flux, pour reconnaître l'application de calendrier.
 export async function getFeedIcs(redis, url, { now = new Date(), userAgent = null } = {}) {
@@ -20,9 +19,7 @@ export async function getFeedIcs(redis, url, { now = new Date(), userAgent = nul
     readFollowedSchedules(redis, subscription.promotions),
     recordFeedRead(redis, tokenHash, reads, userAgent, now).catch((error) => console.error(error.message)),
   ]);
-  const records = current.records.filter(Boolean);
-  const followed = { promotions: withCurrentKeys(current.promotions, records) };
-  const lessons = buildDetailedLessons(records).filter((lesson) => isLessonFollowed(lesson, followed));
+  const { lessons, records } = followedLessons(current);
   // D'après `records`, pas les libellés de l'abonnement : une promotion disparue ne doit pas déclencher la précision de promotion
   // sur les cours de celle qui reste. Sans promotion connue, `lessons` est vide : buildIcs ne lit pas firstMonday.
   const promotions = records.map((record) => record.promotion);

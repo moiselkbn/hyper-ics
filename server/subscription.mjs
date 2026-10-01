@@ -18,7 +18,8 @@ import { feedReadsKey, SCHEDULE_INDEX_KEY, scheduleKey, subscriptionKey } from '
 import { generateToken, hashToken, isTokenFormat } from '../shared/token.mjs';
 import { calendarStatuses } from './feed-reads.mjs';
 import { HttpError, jsonNoStore, readJsonBody } from './http.mjs';
-import { validatePromotionLabels } from './lessons.mjs';
+import { buildDetailedLessons, validatePromotionLabels } from './lessons.mjs';
+import { brusselsDate, lessonsOfDay } from './today.mjs';
 
 const MAX_KEYS = 200;
 const MAX_KEY_LENGTH = 200;
@@ -115,6 +116,16 @@ export function withCurrentLabels(promotions, listed, { renames } = {}) {
   });
 }
 
+// Cours que suit l'élève, avec leurs occurrences : ceux de son flux ICS (server/feed.mjs) et de « Aujourd'hui » sur sa
+// page. Une matière renommée garde le choix de l'élève (voir withCurrentKeys) ; une promotion disparue de Redis est
+// ignorée plutôt que de tout faire échouer. `current` : sortie de readFollowedSchedules. `records` : les plannings
+// présents, dans l'ordre de l'abonnement.
+export function followedLessons(current) {
+  const records = current.records.filter(Boolean);
+  const followed = { promotions: withCurrentKeys(current.promotions, records) };
+  return { lessons: buildDetailedLessons(records).filter((lesson) => isLessonFollowed(lesson, followed)), records };
+}
+
 // L'index ne liste que des promotions qui ont un planning en base.
 const listedLabels = (index) => (index?.promotions ?? []).map((entry) => entry.label);
 
@@ -189,16 +200,29 @@ export async function createSubscription(redis, request, now = new Date()) {
 // renvoyée : l'élève ne pourrait ni la voir ni la décocher, et le PUT la refuserait. Les clés sont renvoyées à jour
 // des renommages de matière, pour recocher le cours sous son nouveau libellé. `calendars` : l'état du calendrier dans
 // chaque application qui a lu le flux (voir calendarStatuses, server/feed-reads.mjs). Les dates de création et de
-// dernière modification s'affichent sur la page de l'élève (« Modifié le … »).
+// dernière modification s'affichent sur la page de l'élève (« Modifié le … »), comme ses cours du jour (`today`, voir
+// server/today.mjs), tirés des plannings déjà lus ici : sans commande Redis de plus.
 export async function getSubscription(redis, url, now = new Date()) {
   const { subscription, reads } = await findSubscription(redis, url);
-  const { promotions, records, listed } = await readFollowedSchedules(redis, subscription.promotions);
+  const current = await readFollowedSchedules(redis, subscription.promotions);
+  const { promotions, records, listed } = current;
   const known = new Set(listed);
+  const followed = followedLessons(current);
+  const date = brusselsDate(now);
   return jsonNoStore({
     promotions: withCurrentKeys(promotions.filter((entry) => known.has(entry.label)), records),
     calendars: calendarStatuses(reads, now),
     createdAt: subscription.createdAt,
     updatedAt: subscription.updatedAt,
+    today: {
+      date,
+      lessons: lessonsOfDay(
+        followed.lessons,
+        followed.records[0]?.firstMonday ?? null,
+        date,
+        followed.records.length > 1,
+      ),
+    },
   });
 }
 

@@ -190,9 +190,10 @@ test('getSubscription renvoie la sélection enregistrée, mode et clés de chaqu
   const redis = inMemoryRedis(index('3TI Web', '2TI Web'));
   const body = { promotions: [entry('3TI Web', ['a', 'b'], ['c']), entry('2TI Web', ['x'], ['y', 'z'])] };
   const { token } = await (await createSubscription(redis, post(body), NOW)).json();
-  const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
+  const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`), NOW);
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
-  // De quoi recocher la sélection, l'état du calendrier (jamais lu ici) et ses dates, rien d'autre.
+  // De quoi recocher la sélection, l'état du calendrier (jamais lu ici), ses dates et les cours du jour (aucun
+  // planning en base ici), rien d'autre.
   assert.deepEqual(await response.json(), {
     promotions: [
       { label: '3TI Web', mode: 'all-except', keys: ['c'] },
@@ -201,6 +202,7 @@ test('getSubscription renvoie la sélection enregistrée, mode et clés de chaqu
     calendars: [],
     createdAt: NOW.toISOString(),
     updatedAt: NOW.toISOString(),
+    today: { date: '2026-09-24', lessons: [] },
   });
 });
 
@@ -347,4 +349,26 @@ test('deleteSubscription répond 400 sans jeton et 404 pour un jeton inconnu, sa
   await assert.rejects(deleteSubscription(redis, del('')), { status: 400 });
   await assert.rejects(deleteSubscription(redis, del(`?token=${generateToken()}`)), { status: 404 });
   assert.equal(redis.store.size, 1);
+});
+
+test('getSubscription renvoie les cours du jour suivis, comme le flux : un cours décoché n’y est pas', async () => {
+  const redis = inMemoryRedis({
+    ...index('3TI Web'),
+    [scheduleKey('3TI Web')]: {
+      promotion: '3TI Web',
+      firstMonday: '2026-09-21',
+      courses: [
+        { code: 'A', subject: 'Projet web', key: 'projet web', teachers: ['Lemal'], rooms: ['W204'], day: 3, start: '09:00', end: '10:30', weeks: [1] },
+        { code: 'B', subject: 'Réseaux', key: 'réseaux', teachers: [], rooms: [], day: 3, start: '13:00', end: '15:00', weeks: [1] },
+        { code: 'C', subject: 'Anglais', key: 'anglais', teachers: [], rooms: [], day: 4, start: '09:00', end: '11:00', weeks: [1] },
+      ],
+    },
+  });
+  const { token } = await (await createSubscription(redis, post({ promotions: [entry('3TI Web', ['projet web', 'anglais'], ['réseaux'])] }))).json();
+  // Jeudi 24 septembre 2026 : semaine 1, jour 3.
+  const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`), NOW);
+  assert.deepEqual((await response.json()).today, {
+    date: '2026-09-24',
+    lessons: [{ subject: 'Projet web', start: '09:00', end: '10:30', rooms: ['W204'], teachers: ['Lemal'] }],
+  });
 });
