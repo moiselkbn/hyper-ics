@@ -4,6 +4,13 @@
   gap: var(--space-1);
 }
 
+/* 6px sous la légende dans la maquette, contre 8px entre le lien et sa confirmation. */
+.link-field__caption {
+  margin: 0 0 -2px;
+  color: var(--transparent-white-50);
+  font-size: 12px;
+}
+
 .link-field__box {
   display: flex;
   align-items: center;

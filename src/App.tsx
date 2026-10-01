@@ -17,7 +17,15 @@ import {
   type Lesson,
   type StoredPromotion,
 } from './data/lessons';
-import { feedUrl, leavePage, openPage, pageTokenOf, pageUrl, showPage } from './data/subscription-links';
+import {
+  feedUrl,
+  leavePage,
+  openPage,
+  pageTokenOf,
+  pageUrl,
+  showPage,
+  takeCreatedLessonCount,
+} from './data/subscription-links';
 import { ClassChoice } from './screens/class-choice';
 import { FeedReady } from './screens/feed-ready';
 import { Generation } from './screens/generation';
@@ -25,6 +33,10 @@ import { Landing } from './screens/landing';
 import { LessonChoice } from './screens/lesson-choice';
 import { SelectionReview } from './screens/selection-review';
 import { SubscriptionDeleted } from './screens/subscription-deleted';
+
+// Calendrier tout juste créé : nombre de cours à annoncer sur sa page, lu une seule fois au chargement (hors du
+// composant, que React peut rendre deux fois en développement).
+const CREATED_LESSON_COUNT = takeCreatedLessonCount();
 
 type Screen =
   | 'landing'
@@ -77,8 +89,8 @@ export function App() {
 
   // Calendrier créé : sa page est rechargée pour de vrai (voir openPage), l'élève y arrive directement.
   useEffect(() => {
-    if (screen === 'feed-ready' && !editing && saved.status === 'ready') openPage(saved.data);
-  }, [screen, editing, saved]);
+    if (screen === 'feed-ready' && !editing && saved.status === 'ready') openPage(saved.data, selectedLessons.size);
+  }, [screen, editing, saved, selectedLessons]);
 
   // Cours des promotions choisies, cochés d'après la sélection enregistrée en modification ; sinon préréglage,
   // tous les cours des promotions choisies.
@@ -191,6 +203,7 @@ export function App() {
         feedUrl={feedUrl(openedToken)}
         onEdit={requestEdit}
         onDelete={requestDelete}
+        createdLessonCount={CREATED_LESSON_COUNT}
       />
     );
   }
@@ -282,5 +295,5 @@ export function App() {
     );
   }
   // Création : attente du rechargement sur la page de l'élève (voir l'effet plus haut).
-  return <StatusScreen status="loading" onRetry={() => openPage(saved.data)} />;
+  return <StatusScreen status="loading" onRetry={() => openPage(saved.data, selectedLessons.size)} />;
 }

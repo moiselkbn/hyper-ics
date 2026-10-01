@@ -66,10 +66,34 @@ export function showPage(token: string) {
   setManifest(`/api/manifest?token=${encodeURIComponent(token)}`);
 }
 
+// Nombre de cours du calendrier tout juste créé, gardé le temps du rechargement de sa page (voir openPage) pour
+// l'annoncer une seule fois. Stockage de l'onglet : il ne survit pas à sa fermeture.
+const CREATED_KEY = 'hyperics:created';
+
 // Ouvre la page de l'élève par un vrai chargement : Safari ne lit le manifest qu'au chargement de la page,
 // c'est donc le seul moyen pour que l'icône d'écran d'accueil rouvre cette page et pas l'accueil.
-export function openPage(token: string) {
+// `lessonCount` : après la création, nombre de cours du calendrier, annoncé sur la page (voir takeCreatedLessonCount).
+export function openPage(token: string, lessonCount?: number) {
+  if (lessonCount !== undefined) {
+    try {
+      window.sessionStorage.setItem(CREATED_KEY, String(lessonCount));
+    } catch {
+      // Stockage indisponible (navigation privée, bloqué) : la page s'ouvre sans l'annonce.
+    }
+  }
   window.location.replace(pageUrl(token));
+}
+
+// Le nombre de cours laissé par openPage, effacé aussitôt : un nouveau chargement ne l'annonce plus. null sinon.
+export function takeCreatedLessonCount(): number | null {
+  try {
+    const stored = window.sessionStorage.getItem(CREATED_KEY);
+    window.sessionStorage.removeItem(CREATED_KEY);
+    const count = Number(stored);
+    return stored !== null && Number.isInteger(count) && count >= 0 ? count : null;
+  } catch {
+    return null;
+  }
 }
 
 // Retour à l'accueil (lien inconnu) : adresse et manifest redeviennent ceux de l'app.

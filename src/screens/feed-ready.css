@@ -7,133 +7,60 @@
 }
 
 .feed-ready__title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
   margin: 0;
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 400;
+  line-height: 1;
   letter-spacing: -0.04em;
 }
 
-/* --- Après une modification de la sélection --- */
-
-.feed-ready__updated {
-  margin: 0;
-}
-
-/* Un lien discret, pas un bouton de plus. */
-.feed-ready__reveal,
-.feed-ready__delete {
+/* Après une modification de la sélection : un lien discret, pas un bouton de plus. */
+.feed-ready__reveal {
   color: var(--transparent-white-50);
   font-size: 14px;
   text-decoration: underline;
 }
 
-/* --- Garder la page (lien + partage + écran d'accueil) --- */
+/* --- Garder la page (lien, écran d'accueil, partage) --- */
 
 .feed-ready__keep {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-2);
-  border-radius: var(--space-2);
-  background: var(--transparent-white-20);
+  padding: 20px var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--background-contrast);
 }
 
 .feed-ready__keep-title {
   margin: 0;
-  color: var(--primary-yellow);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 400;
 }
 
 .feed-ready__keep-text {
   margin: 0;
+  color: var(--transparent-white-50);
   font-size: 14px;
-}
-
-.feed-ready__keep-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.feed-ready__link-field {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border-radius: var(--radius-round);
-  background: var(--transparent-white-20);
-}
-
-.feed-ready__link-url {
-  flex: 1;
-  min-width: 0;
-  padding: 10px var(--space-2);
-  border-radius: var(--radius-round);
-  background: var(--background-dark);
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.feed-ready__copy {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-round);
-  background: var(--transparent-white-50);
-}
-
-/* Deux rectangles superposés, comme dans la maquette. */
-.feed-ready__copy-icon {
-  position: relative;
-  width: 12px;
-  height: 14px;
-}
-
-.feed-ready__copy-icon::before,
-.feed-ready__copy-icon::after {
-  content: '';
-  position: absolute;
-  width: 9.75px;
-  height: 11.79px;
-  background: var(--background-dark);
-}
-
-.feed-ready__copy-icon::before {
-  top: 2.21px;
-  left: 0;
-  border-radius: 1.84px;
-}
-
-.feed-ready__copy-icon::after {
-  top: 0;
-  left: 2.25px;
-  border: 0.737px solid #9e9f9d;
-  border-radius: 1.47px;
 }
 
 .feed-ready__status {
-  display: none;
   margin: 0;
-  color: var(--transparent-white-50);
-  font-size: 12px;
+  color: var(--primary-yellow);
+  font-size: 13px;
+  font-weight: 500;
   text-align: center;
 }
 
-.feed-ready__status--visible {
-  display: block;
+.feed-ready__status:empty {
+  display: none;
 }
 
 /* --- Suppression du calendrier (page de l'élève) --- */
 
 .feed-ready__delete {
-  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 500;
 }
