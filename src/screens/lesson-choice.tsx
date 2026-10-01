@@ -22,7 +22,13 @@ export function LessonChoice({ promotions, lessons, selected, onToggle, onToggle
     <div className="lesson-choice">
       <AppHeader onBack={onBack} />
       <Stepper total={4} current={2} />
-      <StepTitle step={2}>Quels cours suis-tu ?</StepTitle>
+      <div className="lesson-choice__heading">
+        <StepTitle step={2}>Quels cours suis-tu ?</StepTitle>
+        {/* Le scrap ne lit que les semaines 1 à 16 (scraper/hyperplanning-client.mjs) : seul le 1er quadrimestre est publié. */}
+        <p className="lesson-choice__note">
+          Seuls les cours du 1er quadrimestre sont disponibles : Hyperplanning ne publie pas encore le 2e.
+        </p>
+      </div>
       <div className="lesson-choice__groups">
         {promotions.map((promotion) => {
           const lessonsOfPromotion = getLessonsOfPromotion(lessons, promotion);

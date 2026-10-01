@@ -6,6 +6,20 @@
   padding: var(--space-3) var(--space-2) var(--space-2);
 }
 
+/* Titre et sa note, plus proches entre eux que du reste de l'écran. */
+.lesson-choice__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.lesson-choice__note {
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .lesson-choice__groups {
   display: flex;
   flex-direction: column;

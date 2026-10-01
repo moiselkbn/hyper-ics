@@ -27,6 +27,7 @@ export function GoodToKnow() {
           'Tes cours sont vérifiés toutes les heures, de 7h à 17h. Rien n’est mis à jour après 17h.',
           'Google Agenda peut mettre jusqu’à 24 h à afficher un changement.',
           'Les mémos d’Hyperplanning ne sont pas repris.',
+          'Seuls les cours du 1er quadrimestre sont disponibles : Hyperplanning ne publie pas encore le 2e.',
           'En cas de doute, Hyperplanning fait foi.',
         ]}
       />
