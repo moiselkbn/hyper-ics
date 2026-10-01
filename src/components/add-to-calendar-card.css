@@ -8,6 +8,19 @@
   background: var(--background-contrast);
 }
 
+/* Au second plan : même carte, sans la bordure jaune. */
+.add-to-calendar-card--secondary {
+  border-color: transparent;
+}
+
+/* Dans un accordéon, qui fournit déjà le cadre. */
+.add-to-calendar-card--embedded {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
 .add-to-calendar-card__title {
   margin: 0;
   font-size: 20px;
@@ -16,6 +29,11 @@
 
 .add-to-calendar-card__add {
   gap: 10px;
+}
+
+/* La flèche est foncée : éclaircie sur le bouton à contour. */
+.button--secondary .add-to-calendar-card__add-icon {
+  filter: invert(1);
 }
 
 /* Android, pendant le compte à rebours. */

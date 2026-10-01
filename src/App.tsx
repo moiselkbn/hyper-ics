@@ -9,6 +9,7 @@ import {
 } from './api/client';
 import { useRemote } from './api/use-remote';
 import { StatusScreen } from './components/status-screen';
+import type { StoredSubscription } from './data/calendar-status';
 import { isPromotionDisabled, type Curriculum } from './data/curricula';
 import {
   getDefaultLessonIds,
@@ -56,8 +57,9 @@ export function App() {
   const [selectedLessons, setSelectedLessons] = useState<ReadonlySet<string>>(new Set());
   const [curricula, loadCurricula] = useRemote<Curriculum[]>();
   const [lessons, loadLessons] = useRemote<Lesson[]>();
-  // Sélection enregistrée de la page ouverte depuis son lien ; null si le lien ne correspond à aucun abonnement.
-  const [opened, loadOpened] = useRemote<StoredPromotion[] | null>();
+  // Sélection enregistrée de la page ouverte depuis son lien, et état du calendrier dans chaque application ; null si
+  // le lien ne correspond à aucun abonnement.
+  const [opened, loadOpened] = useRemote<StoredSubscription | null>();
   const [saved, loadSaved] = useRemote<string>();
   // Jeton de l'abonnement créé pendant cette visite, ou de celui que l'élève modifie depuis sa page. Il survit à un
   // échec d'enregistrement : la tentative suivante met à jour ce même abonnement au lieu d'en créer un second, que
@@ -87,6 +89,29 @@ export function App() {
 
   useEffect(requestOpened, [requestOpened]);
 
+  // Retour dans l'onglet, par exemple après l'ajout dans l'application de calendrier : l'état du calendrier est relu,
+  // sans écran de chargement. Seulement sur la page de l'élève : ailleurs, une relecture interromprait celle que
+  // lance « Modifier ».
+  const onPage = screen === 'page' || (screen === 'feed-ready' && editing);
+  const canRefresh = openedToken !== null && onPage && opened.status === 'ready';
+  useEffect(() => {
+    if (!canRefresh || !openedToken) return;
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      loadOpened((signal) => fetchSubscription(openedToken, signal), undefined, { silent: true });
+    };
+    // Android : retour depuis Google Agenda ouvert dans l'onglet, la page ressort du cache du navigateur.
+    const refreshFromCache = (event: PageTransitionEvent) => {
+      if (event.persisted) refresh();
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('pageshow', refreshFromCache);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('pageshow', refreshFromCache);
+    };
+  }, [canRefresh, openedToken, loadOpened]);
+
   // Calendrier créé : sa page est rechargée pour de vrai (voir openPage), l'élève y arrive directement.
   useEffect(() => {
     if (screen === 'feed-ready' && !editing && saved.status === 'ready') openPage(saved.data, selectedLessons.size);
@@ -103,7 +128,7 @@ export function App() {
   }
 
   function requestLessons() {
-    loadLessonsOf(selected, editing && opened.status === 'ready' ? opened.data : null);
+    loadLessonsOf(selected, editing && opened.status === 'ready' ? (opened.data?.promotions ?? null) : null);
   }
 
   // « Modifier », depuis la page de l'élève : sa sélection est relue sur le serveur (elle a pu changer depuis un
@@ -116,7 +141,7 @@ export function App() {
       (signal) => fetchSubscription(openedToken, signal),
       (stored) => {
         if (!stored) return;
-        const promotions = new Set(stored.map((entry) => entry.label));
+        const promotions = new Set(stored.promotions.map((entry) => entry.label));
         setToken(openedToken);
         setSelected(promotions);
         // Toutes ses promotions sont sorties du périmètre depuis : il en choisit d'autres.
@@ -124,7 +149,7 @@ export function App() {
           setScreen('class-choice');
           return;
         }
-        loadLessonsOf(promotions, stored);
+        loadLessonsOf(promotions, stored.promotions);
         setScreen('lesson-choice');
       },
     );
@@ -201,6 +226,7 @@ export function App() {
       <FeedReady
         pageUrl={pageUrl(openedToken)}
         feedUrl={feedUrl(openedToken)}
+        calendars={opened.data.calendars}
         onEdit={requestEdit}
         onDelete={requestDelete}
         createdLessonCount={CREATED_LESSON_COUNT}
@@ -288,6 +314,7 @@ export function App() {
       <FeedReady
         pageUrl={pageUrl(saved.data)}
         feedUrl={feedUrl(saved.data)}
+        calendars={opened.status === 'ready' && opened.data ? opened.data.calendars : []}
         onEdit={requestEdit}
         onDelete={requestDelete}
         updated

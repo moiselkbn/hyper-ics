@@ -4,26 +4,31 @@ export type Remote<T> = { status: 'loading' } | { status: 'error' } | { status: 
 
 // État d'une requête vers l'API. `load` lance une requête et annule celle qui serait encore en cours.
 // `onData` s'exécute juste avant l'affichage des données, dans la même mise à jour d'état.
+// `silent` : rafraîchissement en arrière-plan, les données déjà là restent affichées pendant la requête et après un
+// échec.
 export function useRemote<T>() {
   const [state, setState] = useState<Remote<T>>({ status: 'loading' });
   const controller = useRef<AbortController | null>(null);
 
-  const load = useCallback((request: (signal: AbortSignal) => Promise<T>, onData?: (data: T) => void) => {
-    controller.current?.abort();
-    const current = new AbortController();
-    controller.current = current;
-    setState({ status: 'loading' });
-    request(current.signal).then(
-      (data) => {
-        if (current.signal.aborted) return;
-        onData?.(data);
-        setState({ status: 'ready', data });
-      },
-      () => {
-        if (!current.signal.aborted) setState({ status: 'error' });
-      },
-    );
-  }, []);
+  const load = useCallback(
+    (request: (signal: AbortSignal) => Promise<T>, onData?: (data: T) => void, { silent = false } = {}) => {
+      controller.current?.abort();
+      const current = new AbortController();
+      controller.current = current;
+      if (!silent) setState({ status: 'loading' });
+      request(current.signal).then(
+        (data) => {
+          if (current.signal.aborted) return;
+          onData?.(data);
+          setState({ status: 'ready', data });
+        },
+        () => {
+          if (!current.signal.aborted && !silent) setState({ status: 'error' });
+        },
+      );
+    },
+    [],
+  );
 
   return [state, load] as const;
 }

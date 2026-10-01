@@ -6,6 +6,13 @@
   padding: var(--space-3) var(--space-2) var(--space-2);
 }
 
+/* Titre et état du calendrier dans chaque application. */
+.feed-ready__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .feed-ready__title {
   margin: 0;
   font-size: 32px;
@@ -14,11 +21,16 @@
   letter-spacing: -0.04em;
 }
 
-/* Après une modification de la sélection : un lien discret, pas un bouton de plus. */
-.feed-ready__reveal {
+.feed-ready__note {
+  margin: 0;
   color: var(--transparent-white-50);
-  font-size: 14px;
-  text-decoration: underline;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.feed-ready__note strong {
+  color: var(--white);
+  font-weight: 500;
 }
 
 /* --- Garder la page (lien, écran d'accueil, partage) --- */
@@ -54,6 +66,27 @@
 
 .feed-ready__status:empty {
   display: none;
+}
+
+/* --- Ajouter sur un autre appareil --- */
+
+.feed-ready__warning {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--transparent-white-20);
+  border-radius: 12px;
+  color: var(--transparent-white-50);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.feed-ready__warning-icon {
+  flex: none;
+  color: var(--primary-yellow);
+  font-size: 14px;
+  line-height: 1.3;
 }
 
 /* --- Suppression du calendrier (page de l'élève) --- */

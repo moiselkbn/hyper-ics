@@ -1,5 +1,6 @@
+import type { StoredSubscription } from '../data/calendar-status';
 import type { Curriculum } from '../data/curricula';
-import type { Lesson, StoredPromotion, SubscriptionPromotion } from '../data/lessons';
+import type { Lesson, SubscriptionPromotion } from '../data/lessons';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -49,14 +50,13 @@ export async function updateSubscription(
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
-// Sélection enregistrée d'un abonnement, recochée quand l'élève revient la modifier.
-// null : aucun abonnement pour ce jeton (lien mal copié, par exemple).
-export async function fetchSubscription(token: string, signal: AbortSignal): Promise<StoredPromotion[] | null> {
+// Sélection enregistrée d'un abonnement, recochée quand l'élève revient la modifier, et état de son calendrier dans
+// chaque application. null : aucun abonnement pour ce jeton (lien mal copié, par exemple).
+export async function fetchSubscription(token: string, signal: AbortSignal): Promise<StoredSubscription | null> {
   const response = await fetch(`/api/subscription?${new URLSearchParams({ token })}`, { signal });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const { promotions } = (await response.json()) as { promotions: StoredPromotion[] };
-  return promotions;
+  return response.json() as Promise<StoredSubscription>;
 }
 
 // Supprime l'abonnement. 404 : déjà supprimé (depuis un autre appareil, par exemple), le résultat est le même.

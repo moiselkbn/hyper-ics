@@ -5,7 +5,8 @@ import './add-to-home-screen.css';
 
 // Ajout à l'écran d'accueil : installation directe sur Android/Chrome/Edge,
 // instructions manuelles sur iOS (Safari ne permet pas de la déclencher en JS).
-export function AddToHomeScreen() {
+// `variant` : bouton plein tant que le calendrier n'est pas ajouté, discret ensuite.
+export function AddToHomeScreen({ variant = 'primary' }: { variant?: 'primary' | 'secondary' }) {
   const installPrompt = useInstallPrompt();
   const [showIosSteps, setShowIosSteps] = useState(false);
 
@@ -14,6 +15,7 @@ export function AddToHomeScreen() {
   return (
     <div className="add-to-home-screen">
       <Button
+        variant={variant}
         onClick={installPrompt.kind === 'prompt' ? installPrompt.install : () => setShowIosSteps((value) => !value)}
       >
         Ajouter à l’écran d’accueil

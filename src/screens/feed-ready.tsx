@@ -1,17 +1,23 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { AccordionGroup, AccordionItem } from '../components/accordion';
 import { AddToCalendarCard } from '../components/add-to-calendar-card';
 import { AddToHomeScreen } from '../components/add-to-home-screen';
 import { AppHeader } from '../components/app-header';
 import { Banner } from '../components/banner';
 import { Button } from '../components/button';
+import { CalendarStatusList, NotAddedStatus, StartedStatus } from '../components/calendar-status';
 import { DeleteSubscriptionModal } from '../components/delete-subscription-modal';
 import { LinkField } from '../components/link-field';
+import { addedCalendars, pageStateOf, type CalendarStatus } from '../data/calendar-status';
 import { shareOrCopy } from '../data/share';
+import { isAndroid, isPhone, type CalendarApp } from '../data/subscription-links';
 import './feed-ready.css';
 
 type FeedReadyProps = {
   pageUrl: string;
   feedUrl: string;
+  // État du calendrier dans chaque application qui a lu le flux.
+  calendars: CalendarStatus[];
   // Page de l'élève : modifier ses cours.
   onEdit?: () => void;
   // Sélection tout juste modifiée depuis la page de l'élève.
@@ -30,15 +36,41 @@ function CreatedBanner({ lessonCount }: { lessonCount: number }) {
   );
 }
 
-// Page de l'élève (/m/<jeton>) : il y ajoute son calendrier à son application, garde le lien de la page pour y
-// revenir, et peut supprimer son calendrier.
-export function FeedReady({ pageUrl, feedUrl, onEdit, updated = false, createdLessonCount = null, onDelete }: FeedReadyProps) {
+// Appareils où l'élève n'a pas encore son calendrier, selon celui qu'il tient en main.
+function otherDevices() {
+  if (isAndroid()) return 'Ordi, tablette… ou si rien n’apparaît';
+  if (isPhone()) return 'Mac, iPad, ordi… ou si rien n’apparaît';
+  return 'Téléphone, tablette… ou si rien n’apparaît';
+}
+
+// Page de l'élève (/m/<jeton>). Tant que son calendrier n'est dans aucune application, l'ajout est en haut ; une fois
+// ajouté, la page sert à vérifier qu'il se met à jour, et l'ajout passe dans « Ajouter sur un autre appareil ».
+export function FeedReady({
+  pageUrl,
+  feedUrl,
+  calendars,
+  onEdit,
+  updated = false,
+  createdLessonCount = null,
+  onDelete,
+}: FeedReadyProps) {
   const [shareMessage, setShareMessage] = useState('');
-  // Après une modification, l'ajout au calendrier est replié : l'élève l'a normalement déjà fait, et l'ajouter une
-  // seconde fois doublerait ses cours. Il reste accessible pour celui qui ne l'avait pas encore fait.
-  const [addRevealed, setAddRevealed] = useState(false);
-  const showAdd = !updated || addRevealed;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // « Réajouter mon calendrier » : l'onglet de l'application qui ne se met plus à jour, dans l'accordéon déplié.
+  const [reAddApp, setReAddApp] = useState<CalendarApp | null>(null);
+  const addOtherRef = useRef<HTMLDetailsElement>(null);
+  const state = pageStateOf(calendars);
+  const added = addedCalendars(calendars);
+  const googleAdded = added.some((calendar) => calendar.app === 'google');
+
+  function reAdd(app: CalendarApp) {
+    setReAddApp(app);
+    const details = addOtherRef.current;
+    if (!details) return;
+    details.open = true;
+    // Après le rendu de la carte sur le bon onglet, qui change la hauteur de la page.
+    requestAnimationFrame(() => details.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
 
   return (
     <div className="feed-ready">
@@ -51,15 +83,28 @@ export function FeedReady({ pageUrl, feedUrl, onEdit, updated = false, createdLe
       )}
       {!updated && createdLessonCount !== null && <CreatedBanner lessonCount={createdLessonCount} />}
 
-      <h1 className="feed-ready__title">Ton calendrier</h1>
+      <div className="feed-ready__hero">
+        <h1 className="feed-ready__title">Ton calendrier</h1>
+        {state === 'not-added' && <NotAddedStatus />}
+        {state === 'started' && <StartedStatus />}
+        {state === 'connected' && <CalendarStatusList calendars={added} onReAdd={reAdd} />}
+        {/* Sur Android, l'appli Google Agenda décoche d'office la synchronisation d'un agenda ajouté par son adresse. */}
+        {googleAdded && isAndroid() && (
+          <p className="feed-ready__note">
+            <strong>Pas de cours dans l’appli Google Agenda ?</strong> Paramètres → HyperICS → active « Synchroniser »
+            (décoché d’office sur Android).
+          </p>
+        )}
+        {googleAdded && (
+          <p className="feed-ready__note">
+            Google Agenda relit ton calendrier toutes les 8 à 24 h : un changement de dernière minute peut tarder. En cas
+            de doute, Hyperplanning fait foi.
+          </p>
+        )}
+      </div>
 
-      {!showAdd && (
-        <button className="feed-ready__reveal" type="button" onClick={() => setAddRevealed(true)}>
-          Tu ne l’as pas encore ajouté à ton calendrier ?
-        </button>
-      )}
-
-      {showAdd && <AddToCalendarCard pageUrl={pageUrl} feedUrl={feedUrl} />}
+      {state === 'not-added' && <AddToCalendarCard pageUrl={pageUrl} feedUrl={feedUrl} />}
+      {state === 'started' && <AddToCalendarCard pageUrl={pageUrl} feedUrl={feedUrl} variant="secondary" />}
 
       <section className="feed-ready__keep">
         <h2 className="feed-ready__keep-title">Garde ta page perso</h2>
@@ -68,7 +113,7 @@ export function FeedReady({ pageUrl, feedUrl, onEdit, updated = false, createdLe
           tout recommencer : ajoute l’app à ton écran d’accueil et à tes favoris.
         </p>
         <LinkField url={pageUrl} label="Copier le lien de cette page" caption="Lien de ta page" />
-        <AddToHomeScreen />
+        <AddToHomeScreen variant={state === 'connected' ? 'secondary' : 'primary'} />
         <Button variant="secondary" onClick={async () => setShareMessage(await shareOrCopy(pageUrl))}>
           Partager le lien
         </Button>
@@ -76,6 +121,27 @@ export function FeedReady({ pageUrl, feedUrl, onEdit, updated = false, createdLe
           {shareMessage}
         </p>
       </section>
+
+      {state === 'connected' && (
+        <AccordionGroup>
+          <AccordionItem ref={addOtherRef} title="Ajouter sur un autre appareil" subtitle={otherDevices()}>
+            <p className="feed-ready__warning">
+              <span className="feed-ready__warning-icon" aria-hidden="true">
+                ⓘ
+              </span>
+              Déjà ajouté avec iCloud ou ton compte Google ? Il est sans doute déjà sur tes autres appareils : l’ajouter
+              une deuxième fois doublerait tes cours.
+            </p>
+            <AddToCalendarCard
+              key={reAddApp ?? 'device'}
+              pageUrl={pageUrl}
+              feedUrl={feedUrl}
+              variant="embedded"
+              initialApp={reAddApp ?? undefined}
+            />
+          </AccordionItem>
+        </AccordionGroup>
+      )}
 
       {/* Tout en bas, hors du chemin : on ne doit pas tomber dessus par erreur. */}
       {onDelete && (

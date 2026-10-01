@@ -38,11 +38,16 @@ const GOOGLE_DELAY = 'Google Agenda peut mettre jusqu’à 24 h à afficher un c
 // ouvre le site, qui abonne vraiment le compte (testé le 2026-09-30 sur émulateur, Chrome connecté à Google).
 const GOOGLE_ANDROID_DELAY_SECONDS = 6;
 
-function AddButton({ children, onClick, disabled }: { children: string; onClick: () => void; disabled?: boolean }) {
+// Bouton principal de la carte : jaune, sauf au second plan (voir AddToCalendarCard), où il est à contour.
+type MainVariant = 'accent' | 'secondary';
+
+type AddButtonProps = { children: string; variant: MainVariant; onClick: () => void; disabled?: boolean };
+
+function AddButton({ children, variant, onClick, disabled }: AddButtonProps) {
   return (
-    <Button variant="accent" className="add-to-calendar-card__add" onClick={onClick} disabled={disabled}>
+    <Button variant={variant} className="add-to-calendar-card__add" onClick={onClick} disabled={disabled}>
       {children}
-      {!disabled && <img src={arrowUpRightUrl} alt="" width={13} height={13} />}
+      {!disabled && <img className="add-to-calendar-card__add-icon" src={arrowUpRightUrl} alt="" width={13} height={13} />}
     </Button>
   );
 }
@@ -98,7 +103,7 @@ function SendLinkButton({ pageUrl, variant }: { pageUrl: string; variant: 'accen
 }
 
 // Android : ouvre le site de Google Agenda dans l'onglet, après un compte à rebours (voir GOOGLE_ANDROID_DELAY_SECONDS).
-function GoogleAndroidButton({ url }: { url: string }) {
+function GoogleAndroidButton({ url, variant }: { url: string; variant: MainVariant }) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
@@ -121,22 +126,29 @@ function GoogleAndroidButton({ url }: { url: string }) {
   }, []);
 
   if (secondsLeft === null) {
-    return <AddButton onClick={() => setSecondsLeft(GOOGLE_ANDROID_DELAY_SECONDS)}>Ajouter à Google Agenda</AddButton>;
+    return (
+      <AddButton variant={variant} onClick={() => setSecondsLeft(GOOGLE_ANDROID_DELAY_SECONDS)}>
+        Ajouter à Google Agenda
+      </AddButton>
+    );
   }
   return (
-    <AddButton onClick={() => {}} disabled>
+    <AddButton variant={variant} onClick={() => {}} disabled>
       {secondsLeft > 0 ? `Ouverture dans ${secondsLeft} s…` : 'Ouverture…'}
     </AddButton>
   );
 }
 
+type PanelProps = { feedUrl: string; pageUrl: string; variant: MainVariant };
+
 // Apple Calendar (iPhone, iPad, Mac) s'ouvre sur l'abonnement.
-function ApplePanel({ feedUrl }: { feedUrl: string }) {
+function ApplePanel({ feedUrl, variant }: PanelProps) {
   const touch = isAppleTouchDevice();
   const otherDevices = touch && isPhone() ? 'ton Mac et ton iPad' : 'tes autres appareils Apple';
   return (
     <>
       <AddButton
+        variant={variant}
         onClick={() => {
           window.location.href = webcalUrl(feedUrl);
         }}
@@ -154,10 +166,10 @@ function ApplePanel({ feedUrl }: { feedUrl: string }) {
   );
 }
 
-function GoogleAndroidPanel({ feedUrl, pageUrl }: { feedUrl: string; pageUrl: string }) {
+function GoogleAndroidPanel({ feedUrl, pageUrl, variant }: PanelProps) {
   return (
     <>
-      <GoogleAndroidButton url={googleCalendarUrl(feedUrl)} />
+      <GoogleAndroidButton url={googleCalendarUrl(feedUrl)} variant={variant} />
       <p className="add-to-calendar-card__hint">
         Google Agenda s’ouvre dans Chrome après quelques secondes : ne touche à rien en attendant, puis confirme
         l’ajout. Ensuite, dans l’appli Google Agenda : Paramètres, HyperICS, active « Synchroniser ».
@@ -177,7 +189,7 @@ function GoogleAndroidPanel({ feedUrl, pageUrl }: { feedUrl: string; pageUrl: st
 // Google Agenda hors Android : le site ouvre l'abonnement sur un ordinateur. Sur un téléphone (iPhone), ni l'appli
 // ni le site mobile ne permettent d'ajouter un calendrier par son adresse : l'élève s'envoie le lien vers un
 // ordinateur.
-function GooglePanel({ feedUrl, pageUrl }: { feedUrl: string; pageUrl: string }) {
+function GooglePanel({ feedUrl, pageUrl, variant }: PanelProps) {
   if (isPhone()) {
     return (
       <>
@@ -186,7 +198,7 @@ function GooglePanel({ feedUrl, pageUrl }: { feedUrl: string; pageUrl: string })
           un ordinateur et choisis l’onglet Google Agenda : tes cours apparaîtront ensuite tout seuls sur ton
           téléphone.
         </p>
-        <SendLinkButton pageUrl={pageUrl} variant="accent" />
+        <SendLinkButton pageUrl={pageUrl} variant={variant} />
         <p className="add-to-calendar-card__note">{GOOGLE_DELAY}</p>
         <Help summary="Ou ajoute-le à la main">
           <ManualSteps feedUrl={feedUrl} steps={GOOGLE_STEPS} />
@@ -196,7 +208,7 @@ function GooglePanel({ feedUrl, pageUrl }: { feedUrl: string; pageUrl: string })
   }
   return (
     <>
-      <AddButton onClick={() => window.open(googleCalendarUrl(feedUrl), '_blank', 'noopener')}>
+      <AddButton variant={variant} onClick={() => window.open(googleCalendarUrl(feedUrl), '_blank', 'noopener')}>
         Ajouter à Google Agenda
       </AddButton>
       <p className="add-to-calendar-card__note">
@@ -210,24 +222,41 @@ function GooglePanel({ feedUrl, pageUrl }: { feedUrl: string; pageUrl: string })
   );
 }
 
+// Selon l'état de la page de l'élève (voir pageStateOf, src/data/calendar-status.ts) :
+// - `highlighted` : rien n'est encore ajouté, la carte est mise en avant ;
+// - `secondary` : Calendrier d'Apple a lu le flux une fois, l'élève a pu annuler : la carte passe au second plan ;
+// - `embedded` : dans « Ajouter sur un autre appareil », sans cadre ni titre.
+type CardVariant = 'highlighted' | 'secondary' | 'embedded';
+
+const TITLES: Record<CardVariant, string | null> = {
+  highlighted: 'Ajoute-le à ton calendrier',
+  secondary: 'Il n’apparaît pas ? Réessaie',
+  embedded: null,
+};
+
 type AddToCalendarCardProps = {
   pageUrl: string;
   feedUrl: string;
+  variant?: CardVariant;
+  // Onglet ouvert d'office ; sinon, d'après l'appareil.
+  initialApp?: CalendarApp;
 };
 
 // Ajout de l'abonnement à l'application de calendrier de l'élève, une application par onglet.
 // Le flux se met à jour tout seul : c'est un abonnement, jamais un fichier importé une fois pour toutes.
-export function AddToCalendarCard({ pageUrl, feedUrl }: AddToCalendarCardProps) {
-  const [app, setApp] = useState<CalendarApp>(() => detectCalendarApp());
+export function AddToCalendarCard({ pageUrl, feedUrl, variant = 'highlighted', initialApp }: AddToCalendarCardProps) {
+  const [app, setApp] = useState<CalendarApp>(() => initialApp ?? detectCalendarApp());
   const android = isAndroid();
+  const title = TITLES[variant];
+  const panel: PanelProps = { feedUrl, pageUrl, variant: variant === 'secondary' ? 'secondary' : 'accent' };
 
   return (
-    <section className="add-to-calendar-card">
-      <h2 className="add-to-calendar-card__title">Ajoute-le à ton calendrier</h2>
+    <section className={`add-to-calendar-card add-to-calendar-card--${variant}`}>
+      {title && <h2 className="add-to-calendar-card__title">{title}</h2>}
       <CalendarAppTabs value={app} onChange={setApp} />
-      {app === 'apple' && <ApplePanel feedUrl={feedUrl} />}
-      {app === 'google' && android && <GoogleAndroidPanel feedUrl={feedUrl} pageUrl={pageUrl} />}
-      {app === 'google' && !android && <GooglePanel feedUrl={feedUrl} pageUrl={pageUrl} />}
+      {app === 'apple' && <ApplePanel {...panel} />}
+      {app === 'google' && android && <GoogleAndroidPanel {...panel} />}
+      {app === 'google' && !android && <GooglePanel {...panel} />}
     </section>
   );
 }

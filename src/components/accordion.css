@@ -1,0 +1,66 @@
+.accordion-group {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--background-contrast);
+}
+
+.accordion-item + .accordion-item {
+  border-top: 1px solid var(--transparent-white-20);
+}
+
+.accordion-item__summary {
+  padding: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.accordion-item__summary::-webkit-details-marker {
+  display: none;
+}
+
+.accordion-item__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.accordion-item__titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.accordion-item__title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.accordion-item__subtitle {
+  color: var(--transparent-white-50);
+  font-size: 13px;
+}
+
+/* › replié, pointé vers le haut une fois déplié. */
+.accordion-item__chevron {
+  color: var(--transparent-white-50);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.accordion-item[open] .accordion-item__chevron {
+  transform: rotate(-90deg);
+}
+
+/* 12px sous la ligne dépliée dans la maquette, contre 16px de marge autour. */
+.accordion-item__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: -4px;
+  padding: 0 var(--space-2) var(--space-2);
+}
