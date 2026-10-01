@@ -1,0 +1,44 @@
+.link-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.link-field__box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 6px 6px var(--space-2);
+  border: 1px solid var(--transparent-white-20);
+  border-radius: var(--radius-pill);
+  background: var(--background-dark);
+}
+
+.link-field__url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-field__copy {
+  flex: none;
+  padding: var(--space-1) 14px;
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--background-dark);
+  font-size: 14px;
+}
+
+.link-field__status {
+  margin: 0;
+  color: var(--primary-yellow);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.link-field__status:empty {
+  display: none;
+}

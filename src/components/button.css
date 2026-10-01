@@ -18,6 +18,11 @@
   color: var(--background-dark);
 }
 
+.button--secondary {
+  border: 1px solid var(--transparent-white-20);
+  color: var(--white);
+}
+
 .button--primary:disabled {
   background: var(--transparent-white-20);
   color: var(--transparent-white-50);

@@ -1,11 +1,12 @@
+import appleLogoUrl from '../assets/logo-apple-calendar.png';
+import googleLogoUrl from '../assets/logo-google-calendar.png';
 import type { CalendarApp } from '../data/subscription-links';
 import './calendar-app-tabs.css';
 
 // Un onglet par application de calendrier, pas par appareil : le lien Apple est le même sur iPhone, iPad et Mac.
-// Seul l'onglet Apple est dans la maquette : Google en reprend le style.
-const CALENDAR_APPS: { id: CalendarApp; label: string }[] = [
-  { id: 'apple', label: 'Apple' },
-  { id: 'google', label: 'Google' },
+const CALENDAR_APPS: { id: CalendarApp; label: string; logo: string; logoWidth: number }[] = [
+  { id: 'apple', label: 'Apple Calendrier', logo: appleLogoUrl, logoWidth: 16 },
+  { id: 'google', label: 'Google Agenda', logo: googleLogoUrl, logoWidth: 15 },
 ];
 
 type CalendarAppTabsProps = {
@@ -26,7 +27,8 @@ export function CalendarAppTabs({ value, onChange }: CalendarAppTabsProps) {
           aria-pressed={entry.id === value}
           onClick={() => onChange(entry.id)}
         >
-          {entry.label}
+          <img className="calendar-app-tabs__logo" src={entry.logo} alt="" width={entry.logoWidth} height={16} />
+          <span className="calendar-app-tabs__label">{entry.label}</span>
         </button>
       ))}
     </div>

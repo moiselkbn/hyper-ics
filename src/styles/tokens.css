@@ -1,6 +1,7 @@
 /* Tokens issus des maquettes Figma (variables du fichier HyperICS). */
 :root {
   --background-dark: #1d1e1b;
+  --background-contrast: #2a2a2a;
   --white: #f4f4f4;
   --primary-yellow: #cbfe01;
   --transparent-white-20: rgba(244, 244, 244, 0.2);
@@ -17,6 +18,7 @@
   --radius-pill: 33px;
   --radius-chip: 21px;
   --radius-stepper: 18px;
+  --radius-card: 20px;
 
   --font-body: 'Inter Tight Variable', 'Inter Tight', system-ui, sans-serif;
 }
