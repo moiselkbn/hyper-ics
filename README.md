@@ -161,6 +161,10 @@ Précautions envers Hyperplanning : 1,5 s entre deux requêtes, une seule sessio
 
 HyperICS n'a pas d'accord officiel de l'HEFF pour récupérer les plannings. C'est pourquoi la bêta est restreinte, les requêtes sont espacées, et ce document détaille ce qui est stocké. En cas de doute, l'horaire d'Hyperplanning fait foi.
 
+## Licence
+
+Code sous licence [MIT](LICENSE).
+
 ## Conventions
 
 - Code et identifiants en anglais, commentaires en français.
