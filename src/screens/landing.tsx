@@ -30,7 +30,6 @@ export function Landing({ onStart }: LandingProps) {
           <CalendarDayView />
         </PhoneMockup>
       </div>
-      <p className="landing__credit">Créé par Lukebanu Moïse</p>
     </div>
   );
 }

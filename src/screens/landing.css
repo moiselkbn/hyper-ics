@@ -93,11 +93,3 @@
   margin-top: 56px;
   overflow: hidden;
 }
-
-.landing__credit {
-  flex: none;
-  margin: 0;
-  padding: var(--space-1) 0 max(var(--space-1), env(safe-area-inset-bottom));
-  color: var(--transparent-white-50);
-  font-size: 12px;
-}
