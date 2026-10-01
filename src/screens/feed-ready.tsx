@@ -9,6 +9,7 @@ import { CalendarStatusList, NotAddedStatus, StartedStatus } from '../components
 import { DeleteSubscriptionModal } from '../components/delete-subscription-modal';
 import { LinkField } from '../components/link-field';
 import { MyLessons } from '../components/my-lessons';
+import { Faq, GoodToKnow, RemoveFromApp, YourData } from '../components/student-help';
 import { TodayLessons } from '../components/today-lessons';
 import { addedCalendars, pageStateOf, type StoredSubscription } from '../data/calendar-status';
 import type { FollowedLessonsSummary } from '../data/lessons';
@@ -148,8 +149,9 @@ export function FeedReady({
 
       {state !== 'connected' && myLessons}
 
-      {state === 'connected' && (
-        <AccordionGroup>
+      {/* Aide et réglages. L'ajout n'y passe qu'une fois le calendrier ajouté : avant, il est en haut de la page. */}
+      <AccordionGroup>
+        {state === 'connected' && (
           <AccordionItem ref={addOtherRef} title="Ajouter sur un autre appareil" subtitle={otherDevices()}>
             <p className="feed-ready__warning">
               <span className="feed-ready__warning-icon" aria-hidden="true">
@@ -166,8 +168,20 @@ export function FeedReady({
               initialApp={reAddApp ?? undefined}
             />
           </AccordionItem>
-        </AccordionGroup>
-      )}
+        )}
+        <AccordionItem title="Bon à savoir">
+          <GoodToKnow />
+        </AccordionItem>
+        <AccordionItem title="Tes données" subtitle="Ce qu’on garde, et ce qu’on ne garde jamais">
+          <YourData />
+        </AccordionItem>
+        <AccordionItem title="Questions fréquentes">
+          <Faq />
+        </AccordionItem>
+        <AccordionItem title="Retirer HyperICS de mon application">
+          <RemoveFromApp />
+        </AccordionItem>
+      </AccordionGroup>
 
       {/* Tout en bas, hors du chemin : on ne doit pas tomber dessus par erreur. */}
       {onDelete && (

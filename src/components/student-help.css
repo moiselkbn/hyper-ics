@@ -1,0 +1,93 @@
+.student-help__bullets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.student-help__bullet {
+  display: flex;
+  gap: 10px;
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.student-help__bullet::before {
+  content: '•';
+  flex: none;
+  color: var(--primary-yellow);
+}
+
+.student-help__link {
+  color: var(--primary-yellow);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.student-help__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.student-help__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.student-help__heading {
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.student-help__note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.student-help__faq {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+}
+
+.student-help__qa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.student-help__question {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.student-help__answer {
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.student-help__intro {
+  margin: 0;
+  color: var(--transparent-white-50);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.student-help__steps {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}

@@ -2,16 +2,9 @@ import { useState } from 'react';
 import { AppHeader } from '../components/app-header';
 import { Button } from '../components/button';
 import { CalendarAppTabs } from '../components/calendar-app-tabs';
-import { detectCalendarApp, isAppleTouchDevice, type CalendarApp } from '../data/subscription-links';
+import { detectCalendarApp, type CalendarApp } from '../data/subscription-links';
+import { unsubscribeSteps } from '../data/unsubscribe-steps';
 import './subscription-deleted.css';
-
-// Retrait de l'abonnement, application par application. Libellés à confirmer sur appareil.
-const APPLE_TOUCH_STEPS =
-  'Dans l’app Calendrier, touche « Calendriers », puis ⓘ à côté de HyperICS, et le bouton rouge tout en bas (« Se désabonner » ou « Supprimer le calendrier »).';
-const APPLE_MAC_STEPS =
-  'Dans Calendrier, fais un clic droit sur HyperICS dans la liste des calendriers, puis « Se désabonner ».';
-const GOOGLE_STEPS =
-  'Sur calendar.google.com, depuis un ordinateur : dans « Autres agendas », survole HyperICS et clique sur la croix (« Se désabonner »). Il disparaît aussi de ton téléphone.';
 
 type SubscriptionDeletedProps = {
   onRestart: () => void;
@@ -21,10 +14,6 @@ type SubscriptionDeletedProps = {
 // lui-même de l'application de l'élève.
 export function SubscriptionDeleted({ onRestart }: SubscriptionDeletedProps) {
   const [app, setApp] = useState<CalendarApp>(() => detectCalendarApp());
-  const steps = {
-    apple: isAppleTouchDevice() ? APPLE_TOUCH_STEPS : APPLE_MAC_STEPS,
-    google: GOOGLE_STEPS,
-  }[app];
 
   return (
     <div className="subscription-deleted">
@@ -39,7 +28,7 @@ export function SubscriptionDeleted({ onRestart }: SubscriptionDeletedProps) {
       </p>
 
       <CalendarAppTabs value={app} onChange={setApp} />
-      <p className="subscription-deleted__steps">{steps}</p>
+      <p className="subscription-deleted__steps">{unsubscribeSteps(app)}</p>
 
       <div className="subscription-deleted__footer">
         <Button onClick={onRestart}>Créer un nouveau calendrier</Button>
