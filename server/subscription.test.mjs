@@ -189,16 +189,18 @@ test('getSubscription répond 400 sans jeton et 404 pour un jeton mal formé ou 
 test('getSubscription renvoie la sélection enregistrée, mode et clés de chaque promotion', async () => {
   const redis = inMemoryRedis(index('3TI Web', '2TI Web'));
   const body = { promotions: [entry('3TI Web', ['a', 'b'], ['c']), entry('2TI Web', ['x'], ['y', 'z'])] };
-  const { token } = await (await createSubscription(redis, post(body))).json();
+  const { token } = await (await createSubscription(redis, post(body), NOW)).json();
   const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
-  // Ni les dates ni rien d'autre : de quoi recocher la sélection, et l'état du calendrier (jamais lu ici).
+  // De quoi recocher la sélection, l'état du calendrier (jamais lu ici) et ses dates, rien d'autre.
   assert.deepEqual(await response.json(), {
     promotions: [
       { label: '3TI Web', mode: 'all-except', keys: ['c'] },
       { label: '2TI Web', mode: 'only', keys: ['x'] },
     ],
     calendars: [],
+    createdAt: NOW.toISOString(),
+    updatedAt: NOW.toISOString(),
   });
 });
 

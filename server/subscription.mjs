@@ -188,7 +188,8 @@ export async function createSubscription(redis, request, now = new Date()) {
 // ce libellé. Une promotion sortie de l'index sans correspondance (hors périmètre, vrai changement de nom) n'est pas
 // renvoyée : l'élève ne pourrait ni la voir ni la décocher, et le PUT la refuserait. Les clés sont renvoyées à jour
 // des renommages de matière, pour recocher le cours sous son nouveau libellé. `calendars` : l'état du calendrier dans
-// chaque application qui a lu le flux (voir calendarStatuses, server/feed-reads.mjs).
+// chaque application qui a lu le flux (voir calendarStatuses, server/feed-reads.mjs). Les dates de création et de
+// dernière modification s'affichent sur la page de l'élève (« Modifié le … »).
 export async function getSubscription(redis, url, now = new Date()) {
   const { subscription, reads } = await findSubscription(redis, url);
   const { promotions, records, listed } = await readFollowedSchedules(redis, subscription.promotions);
@@ -196,6 +197,8 @@ export async function getSubscription(redis, url, now = new Date()) {
   return jsonNoStore({
     promotions: withCurrentKeys(promotions.filter((entry) => known.has(entry.label)), records),
     calendars: calendarStatuses(reads, now),
+    createdAt: subscription.createdAt,
+    updatedAt: subscription.updatedAt,
   });
 }
 
