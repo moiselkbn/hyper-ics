@@ -1,7 +1,7 @@
 // Lancer avec : node --test server/
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SCHEDULE_INDEX_KEY, scheduleKey, subscriptionKey } from '../shared/redis-keys.mjs';
+import { feedReadsKey, SCHEDULE_INDEX_KEY, scheduleKey, subscriptionKey } from '../shared/redis-keys.mjs';
 import { generateToken, hashToken } from '../shared/token.mjs';
 import {
   chooseModes,
@@ -192,12 +192,13 @@ test('getSubscription renvoie la sélection enregistrée, mode et clés de chaqu
   const { token } = await (await createSubscription(redis, post(body))).json();
   const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
-  // Ni les dates ni rien d'autre : seulement de quoi recocher la sélection.
+  // Ni les dates ni rien d'autre : de quoi recocher la sélection, et l'état du calendrier (jamais lu ici).
   assert.deepEqual(await response.json(), {
     promotions: [
       { label: '3TI Web', mode: 'all-except', keys: ['c'] },
       { label: '2TI Web', mode: 'only', keys: ['x'] },
     ],
+    calendars: [],
   });
 });
 
@@ -207,7 +208,7 @@ test('getSubscription ne renvoie pas une promotion sortie de l’index depuis', 
   const { token } = await (await createSubscription(redis, post(body))).json();
   redis.store.set(SCHEDULE_INDEX_KEY, JSON.stringify(index('3TI Web')[SCHEDULE_INDEX_KEY]));
   const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
-  assert.deepEqual(await response.json(), { promotions: [{ label: '3TI Web', mode: 'all-except', keys: [] }] });
+  assert.deepEqual((await response.json()).promotions, [{ label: '3TI Web', mode: 'all-except', keys: [] }]);
 });
 
 test('withCurrentLabels suit une promotion renommée par casse, espaces ou tirets', () => {
@@ -256,12 +257,10 @@ test('getSubscription renvoie une promotion renommée sous son nouveau libellé,
   redis.store.set(scheduleKey('3TI Web'), JSON.stringify({ promotion: '3TI Web', courses: [], renamedKeys: { c: 'figé' } }));
   redis.store.set(scheduleKey('3TI-WEB'), JSON.stringify({ promotion: '3TI-WEB', courses: [], renamedKeys: { c: 'c2' } }));
   const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
-  assert.deepEqual(await response.json(), {
-    promotions: [
-      { label: '3TI-WEB', mode: 'all-except', keys: ['c2'] },
-      { label: '2TI Web', mode: 'only', keys: ['x'] },
-    ],
-  });
+  assert.deepEqual((await response.json()).promotions, [
+    { label: '3TI-WEB', mode: 'all-except', keys: ['c2'] },
+    { label: '2TI Web', mode: 'only', keys: ['x'] },
+  ]);
 });
 
 test('getSubscription renvoie les clés à jour des matières renommées depuis, pour les recocher', async () => {
@@ -272,12 +271,25 @@ test('getSubscription renvoie les clés à jour des matières renommées depuis,
   // Une clé renommée en une clé déjà enregistrée : une seule fois.
   redis.store.set(scheduleKey('2TI Web'), JSON.stringify({ promotion: '2TI Web', courses: [], renamedKeys: { x: 'w' } }));
   const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`));
-  assert.deepEqual(await response.json(), {
-    promotions: [
-      { label: '3TI Web', mode: 'all-except', keys: ['c2'] },
-      { label: '2TI Web', mode: 'only', keys: ['w'] },
-    ],
-  });
+  assert.deepEqual((await response.json()).promotions, [
+    { label: '3TI Web', mode: 'all-except', keys: ['c2'] },
+    { label: '2TI Web', mode: 'only', keys: ['w'] },
+  ]);
+});
+
+test('getSubscription renvoie l’état du calendrier dans chaque application qui a lu le flux', async () => {
+  const redis = inMemoryRedis(index('3TI Web'));
+  const { token } = await (await createSubscription(redis, post({ promotions: [entry('3TI Web', ['a'])] }))).json();
+  const read = (firstReadAt, lastReadAt) => ({ firstReadAt, lastReadAt });
+  redis.store.set(
+    feedReadsKey(hashToken(token)),
+    JSON.stringify({ google: read('2026-09-24T08:00:00.000Z', '2026-09-24T09:00:00.000Z'), apple: read(NOW.toISOString(), NOW.toISOString()) }),
+  );
+  const response = await getSubscription(redis, new URL(`http://localhost/api/subscription?token=${token}`), NOW);
+  assert.deepEqual((await response.json()).calendars, [
+    { app: 'apple', state: 'started', lastReadAt: NOW.toISOString() },
+    { app: 'google', state: 'connected', lastReadAt: '2026-09-24T09:00:00.000Z' },
+  ]);
 });
 
 test('updateSubscription remplace la sélection sous le même jeton et garde la date de création', async () => {

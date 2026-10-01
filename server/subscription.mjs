@@ -1,7 +1,7 @@
 // Abonnement d'un élève, retrouvé par le hash de son jeton (jamais le jeton en clair).
 // POST /api/subscription : crée l'abonnement et renvoie le jeton, une seule fois.
 // GET /api/subscription?token=… : la sélection enregistrée (page de retour /m/<jeton>, qui la recoche quand l'élève
-// revient la modifier) ; 404 si l'abonnement n'existe pas.
+// revient la modifier) et l'état de son calendrier dans chaque application ; 404 si l'abonnement n'existe pas.
 // PUT /api/subscription?token=… : remplace la sélection d'un abonnement existant : même jeton, donc même flux,
 // sans doublon dans le calendrier de l'élève.
 // DELETE /api/subscription?token=… : efface la sélection (voir deleteSubscription).
@@ -16,6 +16,7 @@
 import { findRenamedPromotion } from '../scraper/campus-scope.mjs';
 import { feedReadsKey, SCHEDULE_INDEX_KEY, scheduleKey, subscriptionKey } from '../shared/redis-keys.mjs';
 import { generateToken, hashToken, isTokenFormat } from '../shared/token.mjs';
+import { calendarStatuses } from './feed-reads.mjs';
 import { HttpError, jsonNoStore, readJsonBody } from './http.mjs';
 import { validatePromotionLabels } from './lessons.mjs';
 
@@ -186,12 +187,16 @@ export async function createSubscription(redis, request, now = new Date()) {
 // Une promotion renommée est renvoyée sous son libellé actuel : l'élève la retrouve cochée, et le PUT enregistre
 // ce libellé. Une promotion sortie de l'index sans correspondance (hors périmètre, vrai changement de nom) n'est pas
 // renvoyée : l'élève ne pourrait ni la voir ni la décocher, et le PUT la refuserait. Les clés sont renvoyées à jour
-// des renommages de matière, pour recocher le cours sous son nouveau libellé.
-export async function getSubscription(redis, url) {
-  const { subscription } = await findSubscription(redis, url);
+// des renommages de matière, pour recocher le cours sous son nouveau libellé. `calendars` : l'état du calendrier dans
+// chaque application qui a lu le flux (voir calendarStatuses, server/feed-reads.mjs).
+export async function getSubscription(redis, url, now = new Date()) {
+  const { subscription, reads } = await findSubscription(redis, url);
   const { promotions, records, listed } = await readFollowedSchedules(redis, subscription.promotions);
   const known = new Set(listed);
-  return jsonNoStore({ promotions: withCurrentKeys(promotions.filter((entry) => known.has(entry.label)), records) });
+  return jsonNoStore({
+    promotions: withCurrentKeys(promotions.filter((entry) => known.has(entry.label)), records),
+    calendars: calendarStatuses(reads, now),
+  });
 }
 
 export async function updateSubscription(redis, request, now = new Date()) {

@@ -36,6 +36,22 @@ export function isAddConfirmed(app, read) {
   return Date.parse(read.lastReadAt) - Date.parse(read.firstReadAt) >= APPLE_CONFIRMATION_MS;
 }
 
+// Sans lecture depuis ce délai, le calendrier ne se met plus à jour dans l'application : Apple relit le flux plusieurs
+// fois par jour, Google toutes les 8 à 24 h.
+export const STALE_AFTER_MS = { apple: 24 * 60 * 60 * 1000, google: 48 * 60 * 60 * 1000 };
+
+// État de chaque application qui a lu le flux, pour la page de l'élève (GET /api/subscription), Apple d'abord :
+// `started` (Apple, ajout pas encore confirmé), `connected`, ou `stale` (plus aucune lecture depuis STALE_AFTER_MS).
+export function calendarStatuses(reads, now) {
+  return READERS.filter(({ app }) => reads?.[app]).map(({ app }) => {
+    const read = reads[app];
+    let state = 'connected';
+    if (!isAddConfirmed(app, read)) state = 'started';
+    else if (now - Date.parse(read.lastReadAt) > STALE_AFTER_MS[app]) state = 'stale';
+    return { app, state, lastReadAt: read.lastReadAt };
+  });
+}
+
 // Les lectures après celle de `app` à `now`, ou null s'il n'y a rien à réécrire. Tant que l'ajout n'est pas confirmé,
 // chaque lecture est notée : celle qui le confirme ne doit pas attendre l'heure suivante.
 export function withRead(reads, app, now) {

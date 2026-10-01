@@ -1,7 +1,15 @@
 // Lancer avec : node --test server/
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { APPLE_CONFIRMATION_MS, detectReader, isAddConfirmed, READ_WRITE_INTERVAL_MS, withRead } from './feed-reads.mjs';
+import {
+  APPLE_CONFIRMATION_MS,
+  calendarStatuses,
+  detectReader,
+  isAddConfirmed,
+  READ_WRITE_INTERVAL_MS,
+  STALE_AFTER_MS,
+  withRead,
+} from './feed-reads.mjs';
 
 const NOW = new Date('2026-10-01T10:00:00.000Z');
 const after = (ms) => new Date(NOW.getTime() + ms);
@@ -57,4 +65,38 @@ test('ajout confirmé : la dernière lecture n’est réécrite qu’une fois pa
   assert.equal(withRead(apple, 'apple', new Date(confirmed.getTime() + 20 * 60 * 1000)), null);
   const later = new Date(confirmed.getTime() + READ_WRITE_INTERVAL_MS);
   assert.deepEqual(withRead(apple, 'apple', later), { apple: read(NOW, later) });
+});
+
+test('calendarStatuses : aucune application tant que le flux n’a pas été lu', () => {
+  assert.deepEqual(calendarStatuses(null, NOW), []);
+  assert.deepEqual(calendarStatuses({}, NOW), []);
+});
+
+test('calendarStatuses : Apple « ajout commencé » jusqu’à la confirmation, puis connecté', () => {
+  const started = read(after(-60 * 60 * 1000), after(-60 * 60 * 1000 + 30 * 1000));
+  assert.deepEqual(calendarStatuses({ apple: started }, NOW), [{ app: 'apple', state: 'started', lastReadAt: started.lastReadAt }]);
+  const confirmed = read(after(-60 * 60 * 1000), after(-60 * 60 * 1000 + APPLE_CONFIRMATION_MS));
+  assert.equal(calendarStatuses({ apple: confirmed }, NOW)[0].state, 'connected');
+});
+
+test('calendarStatuses : plus de mise à jour après 24 h sans lecture pour Apple, 48 h pour Google, Apple d’abord', () => {
+  const lastReadAt = (ms) => read(after(-STALE_AFTER_MS.google - 60 * 60 * 1000), after(-ms));
+  assert.deepEqual(
+    calendarStatuses({ google: lastReadAt(STALE_AFTER_MS.google), apple: lastReadAt(STALE_AFTER_MS.apple) }, NOW).map(
+      ({ app, state }) => [app, state],
+    ),
+    [
+      ['apple', 'connected'],
+      ['google', 'connected'],
+    ],
+  );
+  assert.deepEqual(
+    calendarStatuses({ google: lastReadAt(STALE_AFTER_MS.google + 1), apple: lastReadAt(STALE_AFTER_MS.apple + 1) }, NOW).map(
+      ({ app, state }) => [app, state],
+    ),
+    [
+      ['apple', 'stale'],
+      ['google', 'stale'],
+    ],
+  );
 });
