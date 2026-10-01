@@ -4,8 +4,15 @@
   align-items: center;
   min-height: 100dvh;
   padding: var(--space-3) var(--space-2) 0;
-  overflow: hidden;
+  overflow-x: clip;
   text-align: center;
+}
+
+/* Accueil sans défilement : la page est bloquée, sauf sur un écran trop bas pour atteindre « Commencer » (paysage). */
+@media (min-height: 480px) {
+  html:has(.landing) {
+    overflow: hidden;
+  }
 }
 
 .landing__logo {
@@ -81,8 +88,9 @@
   margin-top: 14px;
 }
 
-/* La maquette est coupée en bas de l'écran : le téléphone prend la hauteur restante, sans faire défiler la page
-   (base nulle : sa hauteur réelle n'agrandit pas l'accueil au-delà de l'écran). */
+/* La maquette est coupée par le bas de l'écran : le téléphone part de la hauteur restante (base nulle, sa hauteur
+   réelle n'agrandit pas l'accueil) et déborde dessous, jusque sous la barre d'outils flottante de Safari iOS, qui
+   s'arrête au-dessus avec 100dvh. */
 .landing__phone {
   display: flex;
   flex: 1 1 0;
@@ -91,5 +99,4 @@
   width: 100%;
   min-height: 0;
   margin-top: 56px;
-  overflow: hidden;
 }
