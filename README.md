@@ -4,7 +4,7 @@ Ajoute ton horaire Hyperplanning à ton calendrier personnel, grâce à un abonn
 
 L'Hyperplanning de l'HEFF n'a pas d'export ICS natif. HyperICS récupère les cours, les interprète, puis les sert à chaque élève sous forme de flux ICS, filtré sur les cours qu'il suit réellement. Le flux se branche dans toute application de calendrier qui accepte les abonnements ICS.
 
-> **Statut : MVP en cours de développement.** Début de la bêta restreinte prévu le 25 septembre 2026. L'abonnement (flux ICS) fonctionne ; depuis sa page, l'élève modifie sa sélection ou supprime son calendrier : voir [État du projet](#état-du-projet).
+> **Statut : MVP fonctionnel, bêta restreinte.** L'abonnement (flux ICS) fonctionne ; depuis sa page, l'élève suit l'état de son calendrier, modifie sa sélection ou supprime son calendrier : voir [État du projet](#état-du-projet).
 >
 > Projet indépendant, non affilié à l'HEFF ni à Index Éducation (éditeur d'Hyperplanning). Voir [Avertissement](#avertissement).
 
@@ -43,6 +43,10 @@ API Vercel (/api)  ──►  front React (choix des cours, page de l'élève /m
 - [x] Abonnement : jeton, flux ICS (fuseau Europe/Brussels, salle et prof de chaque séance), page de l'élève, ajout guidé par plateforme (iOS, Android, Mac/PC)
 - [x] Sélection modifiable depuis la page de l'élève
 - [x] Suppression des données depuis la page de l'élève
+- [x] État du calendrier sur la page de l'élève : pas encore ajouté, ajout commencé, connecté (d'après les lectures du flux par Apple et par Google), avec les cours du jour
+- [x] Suivi des changements d'Hyperplanning : promotion renommée, matière renommée, planning revenu vide, mail quand une promotion disparaît ou apparaît
+
+Limites connues du flux : les annulations et les mémos d'Hyperplanning sont ignorés ; aucune mise à jour après 17h ; Google Agenda se rafraîchit en 8 à 24 h ; l'affichage dans Samsung Agenda n'a jamais été vérifié.
 
 ## Technique
 
@@ -61,7 +65,7 @@ api/          fonctions Vercel : promotions, lessons, subscription, feed, manife
 server/       logique de l'API, testable sans Vercel
 scraper/      scrap d'Hyperplanning et synchronisation vers Redis
 shared/       code commun au scrap et à l'API (client Redis, noms de clés)
-scripts/      outils de développement (serveur d'API local)
+scripts/      outils de développement (serveur d'API local, statistiques des abonnements)
 src/          front React : écrans, composants, styles
 .github/      workflow du scrap
 ```
@@ -85,6 +89,8 @@ Renseigne ensuite `.env` (fichier ignoré par git) :
 | --- | --- |
 | `UPSTASH_REDIS_REST_URL` | URL REST de la base Upstash (console Upstash, onglet REST API) |
 | `UPSTASH_REDIS_REST_TOKEN` | Jeton REST de la même base |
+| `RESEND_API_KEY` | Facultative : clé Resend, pour le mail de signalement de bug et le mail du scrap quand la liste des promotions change |
+| `BUG_REPORT_EMAIL` | Facultative : adresse qui reçoit ces mails (sans domaine vérifié, celle du compte Resend lui-même) |
 | `HYPERPLANNING_BASE_URL` | Facultative : remplace l'adresse d'Hyperplanning utilisée par le scrap |
 
 Remplis la base une première fois (quelques minutes, requêtes espacées) :
@@ -110,6 +116,7 @@ npm run dev
 | `npm test` | Tests (lanceur natif de Node) |
 | `npm run typecheck` | Vérification TypeScript |
 | `npm run build` | Vérification des types, puis build de production dans `dist/` |
+| `npm run stats` | Statistiques des abonnements (totaux, en lecture seule). Attention : `.env` pointe sur la base de production |
 
 ## API
 
@@ -118,22 +125,27 @@ npm run dev
 | `GET /api/promotions` | `{ updatedAt, curricula: [{ id, name, promotions[] }] }` | 503 tant que le premier scrap n'a pas réussi |
 | `GET /api/lessons?promotions=3TI Web,2TE` | `{ updatedAt, lessons: [{ id, key, subject, code, teachers[], mandatory, promotions[] }] }` | 400 si le paramètre est absent ou invalide ; 404 si une promotion est inconnue |
 | `POST /api/subscription` | Corps `{ promotions: [{ label, checked[], unchecked[] }] }` (clés de matière) → `{ token }` | 400 si la sélection est invalide ; 404 si une promotion est inconnue |
-| `GET /api/subscription?token=…` | `{ promotions: [{ label, mode, keys[] }] }` : la sélection enregistrée, recochée quand l'élève la modifie (sans les promotions sorties de l'index) | 400 sans jeton ; 404 si l'abonnement n'existe pas |
+| `GET /api/subscription?token=…` | `{ promotions: [{ label, mode, keys[] }], calendars: [{ app, state, lastReadAt }], createdAt, updatedAt, today }` : la sélection enregistrée, recochée quand l'élève la modifie (sans les promotions sorties de l'index) ; l'état du calendrier par application (`started`, `connected` ou `stale`) ; les dates de l'abonnement ; les cours du jour, les mêmes que dans le flux | 400 sans jeton ; 404 si l'abonnement n'existe pas |
 | `PUT /api/subscription?token=…` | Même corps que le POST → `{ ok }` : remplace la sélection, même jeton | Mêmes erreurs que POST et GET |
 | `DELETE /api/subscription?token=…` | `{ ok }` : efface la sélection ; pendant 7 jours, le flux sert un calendrier vide, puis la clé expire | 400 sans jeton ; 404 si l'abonnement n'existe pas ou est déjà supprimé |
 | `GET /f/<jeton>` (`/api/feed?token=…`) | Flux ICS (`text/calendar`), aussi en `HEAD` | 400 sans jeton ; 404 si l'abonnement n'existe pas |
+| `POST /api/report-bug` | Corps `{ description }` (2000 caractères au plus) → `{ ok }` : envoie un mail de signalement via Resend | 400 si la description est absente ou trop longue |
 | `GET /api/manifest?token=…` | Manifest de l'app qui s'ouvre sur `/m/<jeton>` (icône d'écran d'accueil) | 400 si le jeton est mal formé |
 
 - `lessons` et `subscription` acceptent 2 promotions au maximum : un élève ne chevauche que deux années.
 - Un cours est commun à plusieurs promotions seulement si le code **et** la matière sont identiques.
 - Un abonnement enregistre, par promotion, un mode et des clés de matière (`key`), pas des identifiants de cours : la clé ne change pas quand un cours reçoit un code. Mode `all-except` (la promotion de l'élève : tous ses cours, présents et à venir, sauf les décochés) ou `only` (seconde promotion d'un élève en chevauchement : seulement les cours cochés). Les cours sans code sont toujours dans le flux.
+- Redis garde, par abonnement : `subscription:<hash du jeton>` (la sélection) et `feed-reads:<hash du jeton>` (voir « Données et vie privée »). Les autres clés : `schedule-index` (liste des promotions), `schedule:<promotion>` (planning) et `promotion-labels` (libellés d'Hyperplanning au dernier scrap).
+- L'état du calendrier vient des lectures du flux, reconnues à l'user-agent : Apple lit le flux avant même la confirmation de l'élève, il faut donc une 2e lecture au moins 10 min plus tard pour le dire « connecté » ; Google, dès la 1re. Sans lecture depuis 24 h (Apple) ou 48 h (Google), l'état passe à `stale`.
 - Les réponses de lecture sont mises en cache (5 min côté CDN) : les données ne changent qu'au rythme du scrap. Le flux ne l'est pas pendant la bêta, pour que chaque interrogation apparaisse dans les logs (méthode, statut, user-agent, jamais le jeton).
 
 ## Scrap
 
 Le workflow [`scrap.yml`](.github/workflows/scrap.yml) tourne toutes les heures, de 7h à 17h Europe/Brussels. Déclencheur principal : Upstash QStash, qui appelle toutes les 15 min l'API GitHub (`workflow_dispatch`) — réglé dans sa console, hors dépôt. Le cron GitHub natif (5h–16h UTC) reste en renfort, mais il saute la plupart de ses déclenchements. Dans les deux cas, le script écarte les heures hors de 7h–17h Europe/Brussels (heure d'été comprise) et ne scrape que si le dernier scrap a plus de 50 min. Le workflow peut aussi être lancé à la main depuis l'onglet Actions, avec une option « Simulation » qui n'écrit rien dans Redis.
 
-Il lit deux secrets, à créer dans *Settings → Secrets and variables → Actions* : `UPSTASH_REDIS_REST_URL` et `UPSTASH_REDIS_REST_TOKEN`.
+Il lit quatre secrets, à créer dans *Settings → Secrets and variables → Actions* : `UPSTASH_REDIS_REST_URL` et `UPSTASH_REDIS_REST_TOKEN` (obligatoires), `RESEND_API_KEY` et `BUG_REPORT_EMAIL` (facultatifs : sans eux, le mail qui signale une promotion disparue ou apparue est sauté).
+
+Le scrap suit aussi les changements d'Hyperplanning : un planning revenu vide ne remplace l'ancien qu'au 3e scrap vide consécutif, une matière renommée garde la sélection de l'élève, et une promotion renommée est retrouvée malgré la casse, les espaces ou les tirets (ou par la table `PROMOTION_RENAMES` de `scraper/campus-scope.mjs`, à remplir à la main).
 
 En local :
 
@@ -153,8 +165,9 @@ Précautions envers Hyperplanning : 1,5 s entre deux requêtes, une seule sessio
 ## Données et vie privée
 
 - **Plannings** : Redis contient les plannings des promotions du périmètre (matières, codes, horaires, enseignants, salles, semaines), des données déjà publiques dans Hyperplanning. Aucune donnée d'élève.
-- **Par abonnement** : uniquement le hash du jeton, les promotions choisies avec, pour chacune, les matières cochées ou décochées, et les dates de création et de mise à jour. Ni nom, ni e-mail, ni identifiant Hyperplanning. Le jeton en clair n'est jamais stocké ni journalisé.
-- **Suppression** : depuis sa page, l'élève efface son abonnement. Promotions, matières et dates disparaissent tout de suite ; il ne reste que le hash du jeton et la date de suppression, effacés par Redis après 7 jours. Pendant ce délai, le flux sert un calendrier vide, pour que les cours disparaissent aussi de son application de calendrier.
+- **Par abonnement** : uniquement le hash du jeton, les promotions choisies avec, pour chacune, les matières cochées ou décochées, et les dates de création et de mise à jour. À part, sous le même hash : pour Apple et pour Google, la date de la première et de la dernière lecture du flux, qui sert à afficher l'état du calendrier sur la page de l'élève. Ni nom, ni e-mail, ni identifiant Hyperplanning.
+- **Jeton en clair** : jamais stocké en base, et absent de la ligne de log de l'application (méthode, statut, user-agent). Mais l'adresse du flux, `/f/<jeton>`, reste visible pendant une durée limitée dans les journaux de requêtes de Vercel, l'hébergeur ; la page de l'élève le dit (« Tes données »).
+- **Suppression** : depuis sa page, l'élève efface son abonnement. Promotions, matières, dates et lectures du flux disparaissent tout de suite ; il ne reste que le hash du jeton et la date de suppression, effacés par Redis après 7 jours. Pendant ce délai, le flux sert un calendrier vide, pour que les cours disparaissent aussi de son application de calendrier.
 - Le dépôt est public : aucun secret dans le code, uniquement des variables d'environnement.
 
 ## Avertissement

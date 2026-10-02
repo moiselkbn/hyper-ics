@@ -6,7 +6,7 @@ Contexte projet pour Claude Code. Lu automatiquement à chaque session.
 HyperICS — webapp SaaS open-source qui lie Hyperplanning au calendrier personnel de l'utilisateur via un abonnement ICS, alimenté par un scrap récurrent.
 - Utilisateurs : élèves de l'HEFF, 18-25 ans.
 - Statut : MVP.
-- Échéance : 25 septembre 2026, début de la phase bêta (premiers utilisateurs réels).
+- Échéance : début de la phase bêta (premiers utilisateurs réels), initialement prévu le 25 septembre 2026, dépassé ; nouvelle date à fixer.
 - Contrainte forte : budget nul (aucun service payant, uniquement offres gratuites).
 
 ## Stack
@@ -15,7 +15,7 @@ HyperICS — webapp SaaS open-source qui lie Hyperplanning au calendrier personn
 - Scrap : Node pur (`fetch` + `crypto`, sans Playwright ni dépendance), dans `scraper/`, lancé par GitHub Actions, pas par Vercel : le cron Vercel Hobby est limité à 1 exécution/jour et 4 h d'Active CPU/mois. Déclenché par Upstash QStash (offre gratuite), qui appelle toutes les 15 min l'API GitHub (`workflow_dispatch`) ; le cron GitHub natif reste en renfort, mais il saute la plupart de ses déclenchements. Réglage QStash fait dans sa console, hors dépôt.
 - Stockage : Upstash Redis (offre gratuite, région Frankfurt), partagé entre le scrap (écriture) et l'API Vercel (lecture). Clés `schedule-index` (liste des promotions, avec `hasCourses`), `schedule:<promotion>` (planning), `subscription:<hash du jeton>` (abonnement d'un élève), `feed-reads:<hash du jeton>` (1re et dernière lecture du flux par Apple et par Google, pour l'état « connecté » de la page de l'élève, voir `server/feed-reads.mjs`) et `promotion-labels` (tous les libellés d'Hyperplanning au dernier scrap, pour signaler par mail une promotion disparue ou apparue), voir `shared/redis-keys.mjs`. Les clés `token:*` de la première version de l'abonnement sont orphelines.
 - Dev local : `npm run dev` (Vite) + `npm run dev:api` (`scripts/dev-api.mjs`, proxy Vite), pas de `vercel dev`. Tests : `npm test` (`node --test`), types : `npm run typecheck`, build : `npm run build`.
-- Scrap à la main : `node --env-file=.env scraper/scrap-to-redis.mjs` (`--dry-run` : sans Redis) ; le workflow se lance aussi depuis l'onglet Actions. `.env` (ignoré par git, modèle `.env.example`) : `UPSTASH_REDIS_REST_URL` et `UPSTASH_REDIS_REST_TOKEN`, mêmes noms dans les secrets GitHub et les variables Vercel.
+- Scrap à la main : `node --env-file=.env scraper/scrap-to-redis.mjs` (`--dry-run` : sans Redis) ; le workflow se lance aussi depuis l'onglet Actions. `.env` (ignoré par git, modèle `.env.example`) : `UPSTASH_REDIS_REST_URL` et `UPSTASH_REDIS_REST_TOKEN`, puis `RESEND_API_KEY` et `BUG_REPORT_EMAIL` (facultatives) et `HYPERPLANNING_BASE_URL` (facultative, remplace l'adresse d'Hyperplanning) ; mêmes noms dans les secrets GitHub et les variables Vercel. `npm run stats` : totaux des abonnements, en lecture seule (attention, `.env` = production).
 - Ne jamais choisir ni installer une nouvelle techno ou dépendance sans proposer les options et attendre mon choix.
 - Le dépôt est public (open-source) : GitHub Actions y est gratuit et illimité.
 
