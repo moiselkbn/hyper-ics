@@ -36,7 +36,8 @@ concurrency:
 
 jobs:
   scrap:
-    runs-on: ubuntu-latest
+    # Image épinglée : ubuntu-latest bascule sur la 24.04 et change sans prévenir.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       # Action épinglée par son commit (v7.0.1) : un tag peut être déplacé, pas un commit.
