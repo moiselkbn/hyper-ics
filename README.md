@@ -72,6 +72,8 @@ src/          front React : écrans, composants, styles
 
 Les tests (`*.test.mjs`) sont à côté du code qu'ils vérifient.
 
+Pour comprendre comment les pièces s'articulent (qui fait quoi, pourquoi, parcours d'une donnée du scrap au calendrier), lis [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## Démarrage
 
 Développé avec Node.js 26 et npm 11.
